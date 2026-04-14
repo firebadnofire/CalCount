@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/food_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Protein Bar"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="@color/color_on_surface" />
+
+        <TextView
+            android:id="@+id/food_serving"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="1 bar • 55 g"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/color_on_surface_variant" />
+
+        <TextView
+            android:id="@+id/food_nutrition"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="220 cal • Protein 20g • Carbs 24g • Fat 8g"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/color_on_surface" />
+
+        <TextView
+            android:id="@+id/food_optional_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Reusable saved food"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="@color/color_on_surface_variant" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/edit_button"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/log_button"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Log" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

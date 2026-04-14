@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_today"
+        android:icon="@android:drawable/ic_menu_today"
+        android:title="@string/title_today" />
+    <item
+        android:id="@+id/nav_history"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="@string/title_history" />
+    <item
+        android:id="@+id/nav_food_library"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="@string/title_food_library" />
+    <item
+        android:id="@+id/nav_create_food"
+        android:icon="@android:drawable/ic_input_add"
+        android:title="@string/title_create_food" />
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="@string/title_settings" />
+</menu>

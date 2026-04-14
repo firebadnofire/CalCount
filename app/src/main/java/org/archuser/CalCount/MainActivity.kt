@@ -1,22 +1,28 @@
 package org.archuser.CalCount
 
 import android.os.Bundle
-import android.view.Menu
-import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.navigation.NavigationView
-import androidx.navigation.findNavController
+import androidx.activity.viewModels
 import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.navigation.fragment.NavHostFragment
+import com.google.android.material.snackbar.Snackbar
 import org.archuser.CalCount.databinding.ActivityMainBinding
+import org.archuser.CalCount.ui.AppViewModel
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
+    private val viewModel: AppViewModel by viewModels()
+    private val navController by lazy {
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.nav_host_fragment_content_main) as NavHostFragment
+        navHostFragment.navController
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,35 +30,51 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.appBarMain.toolbar)
+        setSupportActionBar(binding.topAppBar)
 
-        binding.appBarMain.fab.setOnClickListener { view ->
-            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                .setAction("Action", null)
-                .setAnchorView(R.id.fab).show()
-        }
-        val drawerLayout: DrawerLayout = binding.drawerLayout
-        val navView: NavigationView = binding.navView
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow
-            ), drawerLayout
+                R.id.nav_today,
+                R.id.nav_history,
+                R.id.nav_food_library,
+                R.id.nav_create_food,
+                R.id.nav_settings
+            )
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
+        binding.bottomNavigation.setupWithNavController(navController)
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
+            if (item.itemId != R.id.nav_history && navController.currentDestination?.id == R.id.dayDetailFragment) {
+                navController.popBackStack(R.id.nav_history, false)
+            }
+            NavigationUI.onNavDestinationSelected(item, navController)
+        }
+        binding.bottomNavigation.setOnItemReselectedListener { item ->
+            if (item.itemId == R.id.nav_history) {
+                navController.popBackStack(R.id.nav_history, false)
+            } else {
+                navController.popBackStack(item.itemId, false)
+            }
+        }
+
+        viewModel.message.observe(this) { message ->
+            if (message.isNullOrBlank()) {
+                return@observe
+            }
+
+            Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
+                .setAnchorView(binding.bottomNavigation)
+                .show()
+
+            viewModel.clearMessage()
+        }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.main, menu)
-        return true
+    fun navigateToCreateFood() {
+        binding.bottomNavigation.selectedItemId = R.id.nav_create_food
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
         return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 }

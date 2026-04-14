@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/food_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Greek yogurt"
+                android:textAppearance="?attr/textAppearanceTitleSmall"
+                android:textColor="@color/color_on_surface" />
+
+            <TextView
+                android:id="@+id/food_calories"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="120 cal"
+                android:textAppearance="?attr/textAppearanceTitleSmall"
+                android:textColor="@color/color_primary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/food_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="1 serving • 170 g"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/color_on_surface" />
+
+        <TextView
+            android:id="@+id/food_macros"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Protein 17g • Carbs 8g • Fat 0g"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/color_on_surface_variant" />
+
+        <TextView
+            android:id="@+id/food_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="1 cup • 8:30 AM"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="@color/color_on_surface_variant" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

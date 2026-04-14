@@ -1,13 +1,22 @@
 <resources>
     <string name="app_name">CalCount</string>
-    <string name="navigation_drawer_open">Open navigation drawer</string>
-    <string name="navigation_drawer_close">Close navigation drawer</string>
-    <string name="nav_header_title">Android Studio</string>
-    <string name="nav_header_subtitle">android.studio@android.com</string>
-    <string name="nav_header_desc">Navigation header</string>
-    <string name="action_settings">Settings</string>
-
-    <string name="menu_home">Home</string>
-    <string name="menu_gallery">Gallery</string>
-    <string name="menu_slideshow">Slideshow</string>
+    <string name="title_today">Today</string>
+    <string name="title_history">History</string>
+    <string name="title_food_library">Food Library</string>
+    <string name="title_create_food">Create Food</string>
+    <string name="title_settings">Settings</string>
+    <string name="save_food">Save Food</string>
+    <string name="update_food">Update Food</string>
+    <string name="cancel">Cancel</string>
+    <string name="save_log">Save Log</string>
+    <string name="log_food_title">Log %1$s</string>
+    <string name="amount_in_servings">Amount in servings</string>
+    <string name="amount_in_weight">Amount in %1$s</string>
+    <string name="preview_waiting_amount">Enter an amount to preview the serving math.</string>
+    <string name="preview_waiting_calories">Main macro will update here.</string>
+    <string name="preview_waiting_macros">Macros will update here.</string>
+    <string name="preview_macros_hidden">Macro preview is hidden. Choose visible macros in Settings.</string>
+    <string name="positive_number_required">Enter a number greater than zero.</string>
+    <string name="preview_invalid_amount">Enter a valid amount to preview.</string>
+    <string name="select_meal_type">Select a meal type.</string>
 </resources>

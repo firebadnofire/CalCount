@@ -3,23 +3,46 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/nav_home">
+    app:startDestination="@+id/nav_today">
 
     <fragment
-        android:id="@+id/nav_home"
-        android:name="org.archuser.CalCount.ui.home.HomeFragment"
-        android:label="@string/menu_home"
-        tools:layout="@layout/fragment_home" />
+        android:id="@+id/nav_today"
+        android:name="org.archuser.CalCount.ui.today.TodayFragment"
+        android:label="@string/title_today"
+        tools:layout="@layout/fragment_today" />
 
     <fragment
-        android:id="@+id/nav_gallery"
-        android:name="org.archuser.CalCount.ui.gallery.GalleryFragment"
-        android:label="@string/menu_gallery"
-        tools:layout="@layout/fragment_gallery" />
+        android:id="@+id/nav_history"
+        android:name="org.archuser.CalCount.ui.history.HistoryFragment"
+        android:label="@string/title_history"
+        tools:layout="@layout/fragment_history" />
 
     <fragment
-        android:id="@+id/nav_slideshow"
-        android:name="org.archuser.CalCount.ui.slideshow.SlideshowFragment"
-        android:label="@string/menu_slideshow"
-        tools:layout="@layout/fragment_slideshow" />
+        android:id="@+id/nav_food_library"
+        android:name="org.archuser.CalCount.ui.library.FoodLibraryFragment"
+        android:label="@string/title_food_library"
+        tools:layout="@layout/fragment_food_library" />
+
+    <fragment
+        android:id="@+id/nav_create_food"
+        android:name="org.archuser.CalCount.ui.create.CreateFoodFragment"
+        android:label="@string/title_create_food"
+        tools:layout="@layout/fragment_create_food" />
+
+    <fragment
+        android:id="@+id/nav_settings"
+        android:name="org.archuser.CalCount.ui.settings.SettingsFragment"
+        android:label="@string/title_settings"
+        tools:layout="@layout/fragment_settings" />
+
+    <fragment
+        android:id="@+id/dayDetailFragment"
+        android:name="org.archuser.CalCount.ui.history.DayDetailFragment"
+        android:label="@string/title_history"
+        tools:layout="@layout/fragment_today">
+
+        <argument
+            android:name="dateIso"
+            app:argType="string" />
+    </fragment>
 </navigation>
