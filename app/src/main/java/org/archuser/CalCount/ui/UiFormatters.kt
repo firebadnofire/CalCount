@@ -65,40 +65,36 @@ object UiFormatters {
         return parts.joinToString(" • ").ifBlank { null }
     }
 
-    fun mainMacroValue(nutritionSnapshot: NutritionSnapshot, mainMacro: MainMacro): String {
-        return when (mainMacro) {
-            MainMacro.CALORIES -> calories(nutritionSnapshot.calories)
-            MainMacro.PROTEIN -> "Protein ${number(nutritionSnapshot.proteinGrams)}g"
-            MainMacro.CARBS -> "Carbs ${number(nutritionSnapshot.carbsGrams)}g"
-            MainMacro.FAT -> "Fat ${number(nutritionSnapshot.fatGrams)}g"
+    fun mainMacroCompactValue(nutritionSnapshot: NutritionSnapshot, mainMacro: MainMacro): String {
+        return formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)
+    }
+
+    fun mainMacroLabeledValue(nutritionSnapshot: NutritionSnapshot, mainMacro: MainMacro): String {
+        if (mainMacro == MainMacro.CALORIES) {
+            return calories(nutritionSnapshot.calories)
         }
+        return "${mainMacro.displayName} ${formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)}"
     }
 
     fun macroSummarySelectionLine(nutritionSnapshot: NutritionSnapshot, goals: Goals): String? {
-        val showProtein = (goals.proteinTargetGrams != null || goals.showProteinInLivePreview) &&
-            goals.mainMacro != MainMacro.PROTEIN
-        val showCarbs = (goals.carbsTargetGrams != null || goals.showCarbsInLivePreview) &&
-            goals.mainMacro != MainMacro.CARBS
-        val showFat = (goals.fatTargetGrams != null || goals.showFatInLivePreview) &&
-            goals.mainMacro != MainMacro.FAT
+        val mainMacro = goals.mainMacro
+        val parts = MainMacro.entries
+            .filter { it != MainMacro.CALORIES }
+            .filter { it != mainMacro }
+            .filter { it.targetOf(goals) != null || it.isSelectedInMacroSummary(goals) }
+            .map { macro ->
+                "${macro.shortLabel} ${formatMacroValue(macro.valueOf(nutritionSnapshot), macro.unit)}"
+            }
 
-        val showSaturatedFat = goals.saturatedFatTargetGrams != null || goals.showSaturatedFatInLivePreview
-        val showFiber = goals.fiberTargetGrams != null || goals.showFiberInLivePreview
-        val showSugars = goals.sugarsTargetGrams != null || goals.showSugarsInLivePreview
-        val showSodium = goals.sodiumTargetMilligrams != null || goals.showSodiumInLivePreview
-        val showPotassium = goals.potassiumTargetMilligrams != null || goals.showPotassiumInLivePreview
+        return parts.joinToString(" • ").ifBlank { null }
+    }
 
-        return previewNutrientLine(
-            nutritionSnapshot = nutritionSnapshot,
-            showProtein = showProtein,
-            showCarbs = showCarbs,
-            showFat = showFat,
-            showSaturatedFat = showSaturatedFat,
-            showFiber = showFiber,
-            showSugars = showSugars,
-            showSodium = showSodium,
-            showPotassium = showPotassium
-        )
+    private fun formatMacroValue(value: Double, unit: org.archuser.CalCount.data.model.MacroUnit): String {
+        return when (unit) {
+            org.archuser.CalCount.data.model.MacroUnit.CALORIES -> calories(value)
+            org.archuser.CalCount.data.model.MacroUnit.GRAMS -> "${number(value)}g"
+            org.archuser.CalCount.data.model.MacroUnit.MILLIGRAMS -> "${number(value)}mg"
+        }
     }
 
     fun entryAmount(logEntry: LogEntry, preferredUnit: WeightUnit): String {
