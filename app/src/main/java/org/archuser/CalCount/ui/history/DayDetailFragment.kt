@@ -140,7 +140,7 @@ class DayDetailFragment : Fragment() {
             itemBinding.foodName.text = entry.foodName
             itemBinding.foodAmount.text = UiFormatters.entryAmount(entry, state.goals.preferredUnit)
             itemBinding.foodCalories.text =
-                UiFormatters.mainMacroValue(entry.calculatedNutrition, state.goals.mainMacro)
+                UiFormatters.mainMacroLabeledValue(entry.calculatedNutrition, state.goals.mainMacro)
             itemBinding.foodMacros.text =
                 UiFormatters.macroSummarySelectionLine(entry.calculatedNutrition, state.goals).orEmpty()
             itemBinding.foodMeta.text = "${entry.servingDescription} • ${UiFormatters.time(entry.loggedAtEpochMillis)}"

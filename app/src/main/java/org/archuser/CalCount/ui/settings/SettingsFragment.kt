@@ -12,6 +12,7 @@ import org.archuser.CalCount.data.model.WeightUnit
 import org.archuser.CalCount.databinding.FragmentSettingsBinding
 import org.archuser.CalCount.ui.AppUiState
 import org.archuser.CalCount.ui.AppViewModel
+import org.archuser.CalCount.ui.NonFilteringArrayAdapter
 import org.archuser.CalCount.ui.UiFormatters
 
 class SettingsFragment : Fragment() {
@@ -34,13 +35,23 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         viewModel = ViewModelProvider(requireActivity())[AppViewModel::class.java]
 
-        binding.preferredUnitDropdown.setSimpleItems(
-            WeightUnit.entries.map { it.displayName }.toTypedArray()
+        binding.preferredUnitDropdown.setAdapter(
+            NonFilteringArrayAdapter(
+                context = requireContext(),
+                resource = com.google.android.material.R.layout.mtrl_auto_complete_simple_item,
+                items = WeightUnit.entries.map { it.displayName }
+            )
         )
+        binding.preferredUnitDropdown.threshold = 0
 
-        binding.mainMacroDropdown.setSimpleItems(
-            MainMacro.entries.map { it.displayName }.toTypedArray()
+        binding.mainMacroDropdown.setAdapter(
+            NonFilteringArrayAdapter(
+                context = requireContext(),
+                resource = com.google.android.material.R.layout.mtrl_auto_complete_simple_item,
+                items = MainMacro.entries.map { it.displayName }
+            )
         )
+        binding.mainMacroDropdown.threshold = 0
 
         binding.saveSettingsButton.setOnClickListener {
             val didSave = viewModel.updateGoals(

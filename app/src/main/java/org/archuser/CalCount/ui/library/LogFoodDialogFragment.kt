@@ -15,6 +15,7 @@ import org.archuser.CalCount.data.model.MealType
 import org.archuser.CalCount.domain.NutritionCalculator
 import org.archuser.CalCount.databinding.DialogLogFoodBinding
 import org.archuser.CalCount.ui.AppViewModel
+import org.archuser.CalCount.ui.NonFilteringArrayAdapter
 import org.archuser.CalCount.ui.UiFormatters
 
 class LogFoodDialogFragment : DialogFragment() {
@@ -62,7 +63,14 @@ class LogFoodDialogFragment : DialogFragment() {
             "${food.servingDescription} = ${UiFormatters.grams(food.servingWeightGrams)}"
 
         val mealTypeOptions = MealType.entries.map { it.displayName }
-        binding.mealTypeDropdown.setSimpleItems(mealTypeOptions.toTypedArray())
+        binding.mealTypeDropdown.setAdapter(
+            NonFilteringArrayAdapter(
+                context = requireContext(),
+                resource = com.google.android.material.R.layout.mtrl_auto_complete_simple_item,
+                items = mealTypeOptions
+            )
+        )
+        binding.mealTypeDropdown.threshold = 0
         binding.mealTypeDropdown.setText(MealType.SNACK.displayName, false)
 
         binding.inputModeGroup.check(R.id.log_by_servings_button)
@@ -139,12 +147,8 @@ class LogFoodDialogFragment : DialogFragment() {
         binding.previewAmount.text =
             "${UiFormatters.servings(calculation.servings)} • ${UiFormatters.weight(calculation.weightGrams, preferredUnit)}"
 
-        binding.previewCalories.text = when (goals.mainMacro) {
-            MainMacro.CALORIES -> UiFormatters.calories(calculation.nutrition.calories)
-            MainMacro.PROTEIN -> "Protein ${UiFormatters.number(calculation.nutrition.proteinGrams)}g"
-            MainMacro.CARBS -> "Carbs ${UiFormatters.number(calculation.nutrition.carbsGrams)}g"
-            MainMacro.FAT -> "Fat ${UiFormatters.number(calculation.nutrition.fatGrams)}g"
-        }
+        binding.previewCalories.text =
+            UiFormatters.mainMacroLabeledValue(calculation.nutrition, goals.mainMacro)
 
         val shouldShowSecondaryCalories = goals.showCaloriesInLivePreview && goals.mainMacro != MainMacro.CALORIES
         binding.previewSecondaryCalories.visibility = if (shouldShowSecondaryCalories) {
@@ -156,16 +160,10 @@ class LogFoodDialogFragment : DialogFragment() {
             binding.previewSecondaryCalories.text = UiFormatters.calories(calculation.nutrition.calories)
         }
 
-        binding.previewMacros.text = UiFormatters.previewNutrientLine(
+        binding.previewMacros.text = UiFormatters.macroSummarySelectionLine(
             nutritionSnapshot = calculation.nutrition,
-            showProtein = goals.showProteinInLivePreview && goals.mainMacro != MainMacro.PROTEIN,
-            showCarbs = goals.showCarbsInLivePreview && goals.mainMacro != MainMacro.CARBS,
-            showFat = goals.showFatInLivePreview && goals.mainMacro != MainMacro.FAT,
-            showSaturatedFat = goals.showSaturatedFatInLivePreview,
-            showFiber = goals.showFiberInLivePreview,
-            showSugars = goals.showSugarsInLivePreview,
-            showSodium = goals.showSodiumInLivePreview,
-            showPotassium = goals.showPotassiumInLivePreview
+            goals = goals,
+            includeCaloriesUnderMainMacro = false
         ) ?: getString(R.string.preview_macros_hidden)
     }
 

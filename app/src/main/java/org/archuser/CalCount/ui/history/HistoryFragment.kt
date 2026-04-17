@@ -61,7 +61,7 @@ class HistoryFragment : Fragment() {
 
             val itemBinding = ItemHistoryDayBinding.inflate(layoutInflater, binding.historyDaysContainer, false)
             itemBinding.dayDate.text = day.format(dateFormatter)
-            itemBinding.dayCalories.text = UiFormatters.mainMacroValue(nutrition, state.goals.mainMacro)
+            itemBinding.dayCalories.text = UiFormatters.mainMacroLabeledValue(nutrition, state.goals.mainMacro)
             itemBinding.dayMacros.text = UiFormatters.macroSummarySelectionLine(nutrition, state.goals).orEmpty()
             itemBinding.dayMeta.text = "${entries.size} entries"
             itemBinding.root.setOnClickListener {

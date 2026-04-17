@@ -115,7 +115,7 @@ class FoodLibraryFragment : Fragment() {
             itemBinding.foodName.text = food.name
             itemBinding.foodServing.text =
                 "${food.servingDescription} • ${UiFormatters.grams(food.servingWeightGrams)}"
-            val mainMacroValue = UiFormatters.mainMacroValue(food.nutritionPerServing, goals.mainMacro)
+            val mainMacroValue = UiFormatters.mainMacroLabeledValue(food.nutritionPerServing, goals.mainMacro)
             val macroLine = UiFormatters.macroSummarySelectionLine(food.nutritionPerServing, goals)
             itemBinding.foodNutrition.text = if (macroLine.isNullOrBlank()) {
                 mainMacroValue

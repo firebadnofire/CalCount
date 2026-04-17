@@ -3,6 +3,7 @@ package org.archuser.CalCount.ui
 import org.archuser.CalCount.data.model.Goals
 import org.archuser.CalCount.data.model.InputMode
 import org.archuser.CalCount.data.model.LogEntry
+import org.archuser.CalCount.data.model.MacroUnit
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.NutritionSnapshot
 import org.archuser.CalCount.data.model.WeightUnit
@@ -73,27 +74,42 @@ object UiFormatters {
         if (mainMacro == MainMacro.CALORIES) {
             return calories(nutritionSnapshot.calories)
         }
-        return "${mainMacro.displayName} ${formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)}"
+        return "${mainMacro.shortLabel} ${formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)}"
     }
 
-    fun macroSummarySelectionLine(nutritionSnapshot: NutritionSnapshot, goals: Goals): String? {
+    fun macroSummarySelectionLine(
+        nutritionSnapshot: NutritionSnapshot,
+        goals: Goals,
+        includeCaloriesUnderMainMacro: Boolean = true
+    ): String? {
         val mainMacro = goals.mainMacro
-        val parts = MainMacro.entries
+        val parts = buildList {
+            if (
+                includeCaloriesUnderMainMacro &&
+                goals.showCaloriesInLivePreview &&
+                mainMacro != MainMacro.CALORIES
+            ) {
+                add(calories(nutritionSnapshot.calories))
+            }
+        }.toMutableList()
+
+        val selectedMacros = MainMacro.entries
             .filter { it != MainMacro.CALORIES }
             .filter { it != mainMacro }
             .filter { it.targetOf(goals) != null || it.isSelectedInMacroSummary(goals) }
             .map { macro ->
                 "${macro.shortLabel} ${formatMacroValue(macro.valueOf(nutritionSnapshot), macro.unit)}"
             }
+        parts += selectedMacros
 
         return parts.joinToString(" • ").ifBlank { null }
     }
 
-    private fun formatMacroValue(value: Double, unit: org.archuser.CalCount.data.model.MacroUnit): String {
+    private fun formatMacroValue(value: Double, unit: MacroUnit): String {
         return when (unit) {
-            org.archuser.CalCount.data.model.MacroUnit.CALORIES -> calories(value)
-            org.archuser.CalCount.data.model.MacroUnit.GRAMS -> "${number(value)}g"
-            org.archuser.CalCount.data.model.MacroUnit.MILLIGRAMS -> "${number(value)}mg"
+            MacroUnit.CALORIES -> calories(value)
+            MacroUnit.GRAMS -> "${number(value)}g"
+            MacroUnit.MILLIGRAMS -> "${number(value)}mg"
         }
     }
 
@@ -158,103 +174,22 @@ object UiFormatters {
         nutritionSnapshot: NutritionSnapshot,
         goals: Goals
     ): List<String> {
-        return buildList {
-            val shouldShowProtein = goals.proteinTargetGrams != null ||
-                (goals.showProteinInLivePreview && goals.mainMacro != MainMacro.PROTEIN)
-            if (shouldShowProtein) {
-                add(
-                    macroProgress(
-                        label = "Protein",
-                        consumed = nutritionSnapshot.proteinGrams,
-                        target = goals.proteinTargetGrams
-                    )
-                )
+        val mainMacro = goals.mainMacro
+        return MainMacro.entries
+            .filter { it != MainMacro.CALORIES }
+            .filter { macro ->
+                macro.targetOf(goals) != null ||
+                    (macro != mainMacro && macro.isSelectedInMacroSummary(goals))
             }
-
-            val shouldShowCarbs = goals.carbsTargetGrams != null ||
-                (goals.showCarbsInLivePreview && goals.mainMacro != MainMacro.CARBS)
-            if (shouldShowCarbs) {
-                add(
-                    macroProgress(
-                        label = "Carbs",
-                        consumed = nutritionSnapshot.carbsGrams,
-                        target = goals.carbsTargetGrams
-                    )
-                )
+            .map { macro ->
+                val consumed = macro.valueOf(nutritionSnapshot)
+                val target = macro.targetOf(goals)
+                when (macro.unit) {
+                    MacroUnit.GRAMS -> nutrientProgress(macro.displayName, consumed, target, unit = "g")
+                    MacroUnit.MILLIGRAMS -> nutrientProgress(macro.displayName, consumed, target, unit = "mg")
+                    MacroUnit.CALORIES -> nutrientProgress(macro.displayName, consumed, target, unit = " cal")
+                }
             }
-
-            val shouldShowFat = goals.fatTargetGrams != null ||
-                (goals.showFatInLivePreview && goals.mainMacro != MainMacro.FAT)
-            if (shouldShowFat) {
-                add(
-                    macroProgress(
-                        label = "Fat",
-                        consumed = nutritionSnapshot.fatGrams,
-                        target = goals.fatTargetGrams
-                    )
-                )
-            }
-
-            val shouldShowSaturatedFat =
-                goals.saturatedFatTargetGrams != null || goals.showSaturatedFatInLivePreview
-            if (shouldShowSaturatedFat) {
-                add(
-                    macroProgress(
-                        label = "Saturated fat",
-                        consumed = nutritionSnapshot.saturatedFatGrams ?: 0.0,
-                        target = goals.saturatedFatTargetGrams
-                    )
-                )
-            }
-
-            val shouldShowFiber = goals.fiberTargetGrams != null || goals.showFiberInLivePreview
-            if (shouldShowFiber) {
-                add(
-                    macroProgress(
-                        label = "Fiber",
-                        consumed = nutritionSnapshot.fiberGrams ?: 0.0,
-                        target = goals.fiberTargetGrams
-                    )
-                )
-            }
-
-            val shouldShowSugars = goals.sugarsTargetGrams != null || goals.showSugarsInLivePreview
-            if (shouldShowSugars) {
-                add(
-                    macroProgress(
-                        label = "Sugars",
-                        consumed = nutritionSnapshot.sugarGrams ?: 0.0,
-                        target = goals.sugarsTargetGrams
-                    )
-                )
-            }
-
-            val shouldShowSodium =
-                goals.sodiumTargetMilligrams != null || goals.showSodiumInLivePreview
-            if (shouldShowSodium) {
-                add(
-                    nutrientProgress(
-                        label = "Sodium",
-                        consumed = nutritionSnapshot.sodiumMilligrams ?: 0.0,
-                        target = goals.sodiumTargetMilligrams,
-                        unit = "mg"
-                    )
-                )
-            }
-
-            val shouldShowPotassium =
-                goals.potassiumTargetMilligrams != null || goals.showPotassiumInLivePreview
-            if (shouldShowPotassium) {
-                add(
-                    nutrientProgress(
-                        label = "Potassium",
-                        consumed = nutritionSnapshot.potassiumMilligrams ?: 0.0,
-                        target = goals.potassiumTargetMilligrams,
-                        unit = "mg"
-                    )
-                )
-            }
-        }
     }
 
     private fun nutrientProgress(label: String, consumed: Double, target: Double?, unit: String): String {
