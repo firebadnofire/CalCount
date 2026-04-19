@@ -1,4 +1,4 @@
-# Launch Pad Forgejo APK Release Workflow
+# CalCount Forgejo APK Release Workflow
 
 Use this checklist when maintaining this repository's `.forgejo/` APK release
 workflow. The detailed workflow behavior is documented in
@@ -6,7 +6,7 @@ workflow. The detailed workflow behavior is documented in
 
 ## Plan
 
-1. Keep `.forgejo/workflows/release-apk.yml` aligned with the Launch Pad package,
+1. Keep `.forgejo/workflows/release-apk.yml` aligned with the CalCount package,
    artifact names, and GitHub repository.
 2. Confirm the app can read release signing values from environment variables.
 3. Add the required Forgejo secrets.
@@ -16,16 +16,15 @@ workflow. The detailed workflow behavior is documented in
 
 ### Project Names
 
-The Launch Pad workflow uses these project-specific values:
+The CalCount workflow uses these project-specific values:
 
 ```bash
-keystore_path="${temp_dir}/launchpad-release.keystore"
-export RELEASE_KEYSTORE_PATH="${temp_dir}/launchpad-release.keystore"
-cp "${apk_files[0]}" "dist/launchpad-${tag}.apk"
-asset_path="dist/launchpad-${tag}.apk"
-release_name="Launch Pad ${tag}"
-GITHUB_TARGET_OWNER: firebadnofire
-GITHUB_TARGET_REPO: LaunchPad
+keystore_path="${temp_dir}/calcount-release.keystore"
+export RELEASE_KEYSTORE_PATH="${temp_dir}/calcount-release.keystore"
+cp "${apk_files[0]}" "dist/calcount-${tag}.apk"
+asset_path="dist/calcount-${tag}.apk"
+release_name="CalCount ${tag}"
+GITHUB_TARGET_REPO: CalCount
 ```
 
 Use the exact GitHub repository name. GitHub repository paths are case-sensitive
@@ -105,12 +104,11 @@ KEYSTORE_PASSWORD
 GH_KEY
 ```
 
-`GH_KEY` must be able to create the GitHub repository if it is missing, push Git
-refs to it, create and edit releases, and upload release assets in
-`firebadnofire/LaunchPad`. For a classic token, use `repo` scope. For a
-fine-grained token, grant enough account/organization access to create the
-repository and repository `Contents: Read and write` for the destination after it
-exists.
+`GH_KEY` must be able to create the GitHub repository under the authenticated
+GitHub user if it is missing, push Git refs to it, create and edit releases, and
+upload release assets in `CalCount`. For a classic token, use `repo` scope. For a
+fine-grained token, grant repository `Contents: Read and write` for the
+destination after it exists.
 
 Generate `KEYSTORE_BASE64` from the keystore file with:
 

@@ -114,9 +114,9 @@ The workflow validates all required secrets before it builds:
 | `KEY_PASSWORD` | Password for the Android signing key. |
 | `KEYSTORE_BASE64` | Base64-encoded Android keystore file. |
 | `KEYSTORE_PASSWORD` | Password for the Android keystore. |
-| `GH_KEY` | GitHub access token used to migrate to and publish to `github.com/firebadnofire/LaunchPad`. |
+| `GH_KEY` | GitHub access token used to migrate to and publish to `github.com/<GH_KEY-authenticated-user>/CalCount`. |
 
-`GH_KEY` should have enough permission to create `firebadnofire/LaunchPad` if it
+`GH_KEY` should have enough permission to create `CalCount` under the GH_KEY-authenticated user if it
 does not exist, push Git refs to it, create and edit releases, and upload release
 assets. For a classic token, use `repo` scope. For a fine-grained token, grant
 enough account or organization access to create the repository and repository
@@ -175,7 +175,7 @@ app/build/outputs/apk/release/*.apk
 It copies that APK to:
 
 ```text
-dist/launchpad-${TAG}.apk
+dist/calcount-${TAG}.apk
 ```
 
 If the Android project later gains flavors, ABI splits, or multiple release APKs,
@@ -214,15 +214,19 @@ GitHub release publishing happens.
 Target repository:
 
 ```text
-github.com/firebadnofire/LaunchPad
+github.com/{GH_KEY-authenticated-user}/CalCount
 ```
 
-The workflow stores that target explicitly in job-level environment variables:
+The workflow stores the repository name explicitly in a job-level environment
+variable:
 
 ```yaml
-GITHUB_TARGET_OWNER: firebadnofire
-GITHUB_TARGET_REPO: LaunchPad
+GITHUB_TARGET_REPO: CalCount
 ```
+
+By default, the GitHub owner is the account authenticated by `GH_KEY`. To publish
+to a different GitHub user or organization, add `GITHUB_TARGET_OWNER` and make
+sure `GH_KEY` has permission to create and push to that destination.
 
 Do not derive the GitHub destination from `github.repository` or
 `github.repository_owner` on Forgejo. Those values describe the source repository
@@ -239,10 +243,10 @@ The step:
 The migration logic lives in the `github_migrate` shell function. The release
 publishing step runs only after that function completes successfully.
 
-For user-owned repositories, the token must authenticate as `firebadnofire`,
-because GitHub's user repository creation endpoint creates repositories under
-the authenticated user. For organization-owned repositories, the token must be
-allowed to create repositories in the organization.
+For default user-owned repositories, GitHub creates missing repositories under
+the user authenticated by `GH_KEY`. For organization-owned repositories, set
+`GITHUB_TARGET_OWNER` and make sure the token can create repositories in that
+organization.
 
 ## GitHub Release Publishing
 
@@ -252,7 +256,7 @@ run GitHub Actions.
 Target repository:
 
 ```text
-github.com/firebadnofire/LaunchPad
+github.com/{GH_KEY-authenticated-user}/CalCount
 ```
 
 The step:
@@ -271,7 +275,7 @@ https://uploads.github.com/repos/{owner}/{repo}/releases/{release_id}/assets
 ```
 
 If GitHub release creation fails because the tag does not exist on GitHub, verify
-that the migration step pushed the tag to `firebadnofire/LaunchPad`. The workflow
+that the migration step pushed the tag to `CalCount`. The workflow
 does not pass Forgejo's commit SHA as `target_commitish`, because that SHA may
 not exist in GitHub. If the tag is missing on GitHub, GitHub creates it from the
 target repository's default branch when the release is created.
@@ -300,7 +304,7 @@ want to allow.
 Edit the `Prepare release asset` step and both publish steps that refer to:
 
 ```bash
-asset_path="dist/launchpad-${tag}.apk"
+asset_path="dist/calcount-${tag}.apk"
 ```
 
 Keep the filename deterministic so reruns can replace the previous asset.
@@ -318,11 +322,16 @@ Remove the `Publish Forgejo release` step. Keep `GH_KEY` validation.
 
 ### Change the GitHub target repository
 
-Edit these job-level environment variables:
+Edit this job-level environment variable:
 
 ```yaml
-GITHUB_TARGET_OWNER: firebadnofire
-GITHUB_TARGET_REPO: LaunchPad
+GITHUB_TARGET_REPO: CalCount
+```
+
+To publish to an organization or a different user, also add:
+
+```yaml
+GITHUB_TARGET_OWNER: target-owner
 ```
 
 Make sure `GH_KEY` has permission for the new target repository.

@@ -13,8 +13,7 @@ jobs:
       image: ubuntu:22.04
       options: --network ci-network
     env:
-      GITHUB_TARGET_OWNER: firebadnofire
-      GITHUB_TARGET_REPO: LaunchPad
+      GITHUB_TARGET_REPO: CalCount
 
     steps:
       - name: Prepare APT and action runtime
@@ -112,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           temp_dir="${RUNNER_TEMP:-${RUNNER_TMP:-/tmp}}"
-          keystore_path="${temp_dir}/launchpad-release.keystore"
+          keystore_path="${temp_dir}/calcount-release.keystore"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
           chmod 600 "$keystore_path"
 
@@ -125,7 +124,7 @@ jobs:
         run: |
           set -euo pipefail
           temp_dir="${RUNNER_TEMP:-${RUNNER_TMP:-/tmp}}"
-          export RELEASE_KEYSTORE_PATH="${temp_dir}/launchpad-release.keystore"
+          export RELEASE_KEYSTORE_PATH="${temp_dir}/calcount-release.keystore"
           if [ ! -f "$RELEASE_KEYSTORE_PATH" ]; then
             echo "Release keystore was not decoded at $RELEASE_KEYSTORE_PATH" >&2
             exit 1
@@ -148,7 +147,7 @@ jobs:
           fi
 
           mkdir -p dist
-          cp "${apk_files[0]}" "dist/launchpad-${tag}.apk"
+          cp "${apk_files[0]}" "dist/calcount-${tag}.apk"
 
       - name: Publish Forgejo release
         shell: bash
@@ -163,8 +162,8 @@ jobs:
           token="${FORGEJO_TOKEN:-${GITHUB_TOKEN:?Missing Forgejo token}}"
           owner="${repository%%/*}"
           repo="${repository#*/}"
-          asset_path="dist/launchpad-${tag}.apk"
-          release_name="Launch Pad ${tag}"
+          asset_path="dist/calcount-${tag}.apk"
+          release_name="CalCount ${tag}"
           release_body="Automated APK release for ${tag}."
 
           api_request() {
@@ -238,11 +237,8 @@ jobs:
           set -euo pipefail
 
           api_url="https://api.github.com"
-          owner="${GITHUB_TARGET_OWNER:?Missing GitHub target owner}"
           repo="${GITHUB_TARGET_REPO:?Missing GitHub target repository}"
           token="${GH_KEY:?Missing GitHub token}"
-
-          echo "Target GitHub repo: ${owner}/${repo}"
 
           github_api_request() {
             local method="$1"
@@ -267,6 +263,15 @@ jobs:
             fi
             cat "$response_file"
           }
+
+          authenticated_login="$(github_api_request GET "${api_url}/user" | jq -r '.login')"
+          owner="${GITHUB_TARGET_OWNER:-$authenticated_login}"
+          if [ "$repo" != "${repo#*/}" ]; then
+            echo "GITHUB_TARGET_REPO must be a repository name, not owner/repo: ${repo}" >&2
+            exit 1
+          fi
+
+          echo "Target GitHub repo: ${owner}/${repo}"
 
           github_repo_status() {
             local response_file
@@ -303,7 +308,7 @@ jobs:
               owner_type="$(printf '%s' "$owner_json" | jq -r '.type')"
               create_payload="$(jq -n \
                 --arg name "$repo" \
-                --arg description "Launch Pad Android app" \
+                --arg description "CalCount Android app" \
                 '{name: $name, description: $description, private: false, auto_init: false}')"
 
               if [ "$owner_type" = "Organization" ]; then
@@ -311,7 +316,6 @@ jobs:
                   --header "Content-Type: application/json" \
                   --data "$create_payload" >/dev/null
               elif [ "$owner_type" = "User" ]; then
-                authenticated_login="$(github_api_request GET "${api_url}/user" | jq -r '.login')"
                 if [ "$authenticated_login" != "$owner" ]; then
                   echo "Cannot create ${owner}/${repo}: GH_KEY authenticates as ${authenticated_login}, not ${owner}." >&2
                   exit 1
@@ -357,17 +361,14 @@ jobs:
 
           api_url="https://api.github.com"
           upload_url="https://uploads.github.com"
-          owner="${GITHUB_TARGET_OWNER:?Missing GitHub target owner}"
           repo="${GITHUB_TARGET_REPO:?Missing GitHub target repository}"
           tag="${FORGEJO_REF_NAME:-${GITHUB_REF_NAME:?Missing tag ref name}}"
           token="${GH_KEY:?Missing GitHub token}"
-          asset_path="dist/launchpad-${tag}.apk"
+          asset_path="dist/calcount-${tag}.apk"
           asset_name="$(basename "$asset_path")"
           asset_name_encoded="$(jq -nr --arg value "$asset_name" '$value|@uri')"
-          release_name="Launch Pad ${tag}"
+          release_name="CalCount ${tag}"
           release_body="Automated APK release for ${tag}."
-
-          echo "Target GitHub repo: ${owner}/${repo}"
 
           github_request() {
             local method="$1"
@@ -392,6 +393,15 @@ jobs:
             fi
             cat "$response_file"
           }
+
+          authenticated_login="$(github_request GET "${api_url}/user" | jq -r '.login')"
+          owner="${GITHUB_TARGET_OWNER:-$authenticated_login}"
+          if [ "$repo" != "${repo#*/}" ]; then
+            echo "GITHUB_TARGET_REPO must be a repository name, not owner/repo: ${repo}" >&2
+            exit 1
+          fi
+
+          echo "Target GitHub repo: ${owner}/${repo}"
 
           release_response="$(mktemp)"
           release_status="$(curl --silent --show-error \
