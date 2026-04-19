@@ -90,18 +90,16 @@ any `apt-get update`.
 The workflow uses three actions:
 
 ```yaml
-uses: actions/checkout@v4
-uses: actions/setup-java@v4
+uses: https://github.com/actions/checkout@v4
+uses: https://github.com/actions/setup-java@v4
 uses: https://github.com/android-actions/setup-android@v3
 ```
 
-The first two resolve through Forgejo's action mirror on this runner.
+Use full GitHub URLs for external actions on this runner. Shorthand action
+references such as `actions/checkout@v4` can be rewritten to the local Forgejo
+instance, which only works when that action repository is mirrored locally.
 
-The Android SDK action must use the full GitHub URL because Forgejo otherwise
-tries to resolve `android-actions/setup-android` through `data.forgejo.org`, where
-that repository is not available.
-
-If another action fails with a `data.forgejo.org/... not found` error, either:
+If another action fails with a local mirror `not found` error, either:
 
 - use a full URL such as `https://github.com/owner/action@tag`, or
 - replace the action with an explicit shell step.
@@ -323,7 +321,7 @@ Make sure `GH_KEY` has permission for the new target repository.
 Java is controlled by:
 
 ```yaml
-uses: actions/setup-java@v4
+uses: https://github.com/actions/setup-java@v4
 with:
   distribution: temurin
   java-version: "17"
@@ -339,12 +337,12 @@ SDK is controlled by `compileSdk` in `app/build.gradle.kts`.
 
 Check the pushed tag. It must match `v*` or `V*`.
 
-### Action clone failed from `data.forgejo.org`
+### Action clone failed from a local action mirror
 
 Use a full action URL, for example:
 
 ```yaml
-uses: https://github.com/android-actions/setup-android@v3
+uses: https://github.com/actions/checkout@v4
 ```
 
 ### APT cannot connect to package repositories
