@@ -13,8 +13,8 @@ jobs:
       image: ubuntu:22.04
       options: --network ci-network
     env:
-      REPO_OWNER: ${{ github.repository_owner }}
-      REPO_NAME: ${{ github.repository }}
+      GITHUB_TARGET_OWNER: firebadnofire
+      GITHUB_TARGET_REPO: LaunchPad
 
     steps:
       - name: Prepare APT and action runtime
@@ -238,9 +238,11 @@ jobs:
           set -euo pipefail
 
           api_url="https://api.github.com"
-          owner="${REPO_OWNER}"
-          repo="${REPO_NAME}"
+          owner="${GITHUB_TARGET_OWNER:?Missing GitHub target owner}"
+          repo="${GITHUB_TARGET_REPO:?Missing GitHub target repository}"
           token="${GH_KEY:?Missing GitHub token}"
+
+          echo "Target GitHub repo: ${owner}/${repo}"
 
           github_api_request() {
             local method="$1"
@@ -355,8 +357,8 @@ jobs:
 
           api_url="https://api.github.com"
           upload_url="https://uploads.github.com"
-          owner="${REPO_OWNER}"
-          repo="${REPO_NAME}"
+          owner="${GITHUB_TARGET_OWNER:?Missing GitHub target owner}"
+          repo="${GITHUB_TARGET_REPO:?Missing GitHub target repository}"
           tag="${FORGEJO_REF_NAME:-${GITHUB_REF_NAME:?Missing tag ref name}}"
           token="${GH_KEY:?Missing GitHub token}"
           asset_path="dist/launchpad-${tag}.apk"
@@ -364,6 +366,8 @@ jobs:
           asset_name_encoded="$(jq -nr --arg value "$asset_name" '$value|@uri')"
           release_name="Launch Pad ${tag}"
           release_body="Automated APK release for ${tag}."
+
+          echo "Target GitHub repo: ${owner}/${repo}"
 
           github_request() {
             local method="$1"

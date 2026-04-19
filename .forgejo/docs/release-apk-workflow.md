@@ -217,6 +217,17 @@ Target repository:
 github.com/firebadnofire/LaunchPad
 ```
 
+The workflow stores that target explicitly in job-level environment variables:
+
+```yaml
+GITHUB_TARGET_OWNER: firebadnofire
+GITHUB_TARGET_REPO: LaunchPad
+```
+
+Do not derive the GitHub destination from `github.repository` or
+`github.repository_owner` on Forgejo. Those values describe the source repository
+context and can point the GitHub migration at the wrong owner.
+
 The step:
 
 1. Checks whether the GitHub repository exists.
@@ -307,11 +318,11 @@ Remove the `Publish Forgejo release` step. Keep `GH_KEY` validation.
 
 ### Change the GitHub target repository
 
-Edit these variables in `Publish GitHub release`:
+Edit these job-level environment variables:
 
-```bash
-owner="firebadnofire"
-repo="LaunchPad"
+```yaml
+GITHUB_TARGET_OWNER: firebadnofire
+GITHUB_TARGET_REPO: LaunchPad
 ```
 
 Make sure `GH_KEY` has permission for the new target repository.

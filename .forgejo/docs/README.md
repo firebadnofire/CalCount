@@ -24,8 +24,8 @@ export RELEASE_KEYSTORE_PATH="${temp_dir}/launchpad-release.keystore"
 cp "${apk_files[0]}" "dist/launchpad-${tag}.apk"
 asset_path="dist/launchpad-${tag}.apk"
 release_name="Launch Pad ${tag}"
-owner="firebadnofire"
-repo="LaunchPad"
+GITHUB_TARGET_OWNER: firebadnofire
+GITHUB_TARGET_REPO: LaunchPad
 ```
 
 Use the exact GitHub repository name. GitHub repository paths are case-sensitive
