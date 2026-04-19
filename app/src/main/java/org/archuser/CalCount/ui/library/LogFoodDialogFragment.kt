@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.Food
+import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.InputMode
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.MealType
@@ -25,6 +26,7 @@ class LogFoodDialogFragment : DialogFragment() {
 
     private lateinit var viewModel: AppViewModel
     private var currentInputMode: InputMode = InputMode.SERVINGS
+    private var currentFoodKind: FoodKind = FoodKind.FOOD
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         _binding = DialogLogFoodBinding.inflate(layoutInflater)
@@ -59,8 +61,14 @@ class LogFoodDialogFragment : DialogFragment() {
     }
 
     private fun setupDialog(food: Food) {
+        currentFoodKind = food.kind
+        val goals = currentGoals()
         binding.servingInfo.text =
-            "${food.servingDescription} = ${UiFormatters.grams(food.servingWeightGrams)}"
+            if (food.kind == FoodKind.LIQUID) {
+                "${food.servingDescription} = ${UiFormatters.volume(food.servingVolumeMilliliters, goals.preferredLiquidUnit)}"
+            } else {
+                "${food.servingDescription} = ${UiFormatters.grams(food.servingWeightGrams)}"
+            }
 
         val mealTypeOptions = MealType.entries.map { it.displayName }
         binding.mealTypeDropdown.setAdapter(
@@ -96,17 +104,23 @@ class LogFoodDialogFragment : DialogFragment() {
     }
 
     private fun updateAmountHint() {
-        val preferredUnit = currentGoals().preferredUnit
+        val goals = currentGoals()
+        val unitLabel = if (currentFoodKind == FoodKind.LIQUID) {
+            goals.preferredLiquidUnit.shortLabel
+        } else {
+            goals.preferredUnit.shortLabel
+        }
         binding.amountLayout.hint = if (currentInputMode == InputMode.SERVINGS) {
             getString(R.string.amount_in_servings)
         } else {
-            getString(R.string.amount_in_weight, preferredUnit.shortLabel)
+            getString(R.string.amount_in_weight, unitLabel)
         }
     }
 
     private fun updatePreview(food: Food) {
         val goals = currentGoals()
         val preferredUnit = goals.preferredUnit
+        val preferredLiquidUnit = goals.preferredLiquidUnit
         val amountText = binding.amountEditText.text?.toString().orEmpty()
         binding.amountLayout.error = null
 
@@ -131,10 +145,17 @@ class LogFoodDialogFragment : DialogFragment() {
         val calculation = try {
             when (currentInputMode) {
                 InputMode.SERVINGS -> NutritionCalculator.calculateForServings(food, amount)
-                InputMode.WEIGHT -> NutritionCalculator.calculateForWeight(
-                    food,
-                    NutritionCalculator.convertToGrams(amount, preferredUnit)
-                )
+                InputMode.WEIGHT -> if (food.kind == FoodKind.LIQUID) {
+                    NutritionCalculator.calculateForVolume(
+                        food,
+                        NutritionCalculator.convertToMilliliters(amount, preferredLiquidUnit)
+                    )
+                } else {
+                    NutritionCalculator.calculateForWeight(
+                        food,
+                        NutritionCalculator.convertToGrams(amount, preferredUnit)
+                    )
+                }
             }
         } catch (_: IllegalArgumentException) {
             binding.previewAmount.text = getString(R.string.preview_invalid_amount)
@@ -144,8 +165,13 @@ class LogFoodDialogFragment : DialogFragment() {
             return
         }
 
+        val amountLabel = if (food.kind == FoodKind.LIQUID) {
+            UiFormatters.volume(calculation.volumeMilliliters, preferredLiquidUnit)
+        } else {
+            UiFormatters.weight(calculation.weightGrams, preferredUnit)
+        }
         binding.previewAmount.text =
-            "${UiFormatters.servings(calculation.servings)} • ${UiFormatters.weight(calculation.weightGrams, preferredUnit)}"
+            "${UiFormatters.servings(calculation.servings)} • $amountLabel"
 
         binding.previewCalories.text =
             UiFormatters.mainMacroLabeledValue(calculation.nutrition, goals.mainMacro)

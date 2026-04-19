@@ -3,12 +3,14 @@ package org.archuser.CalCount.data
 import android.content.Context
 import org.archuser.CalCount.data.model.AppState
 import org.archuser.CalCount.data.model.Food
+import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.Goals
 import org.archuser.CalCount.data.model.InputMode
 import org.archuser.CalCount.data.model.LogEntry
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.MealType
 import org.archuser.CalCount.data.model.NutritionSnapshot
+import org.archuser.CalCount.data.model.VolumeUnit
 import org.archuser.CalCount.data.model.WeightUnit
 import org.json.JSONArray
 import org.json.JSONObject
@@ -82,7 +84,11 @@ class CalorieRepository(context: Context) {
             id = jsonObject.getString("id"),
             name = jsonObject.getString("name"),
             servingDescription = jsonObject.getString("servingDescription"),
+            kind = runCatching {
+                FoodKind.valueOf(jsonObject.optString("kind", FoodKind.FOOD.name))
+            }.getOrDefault(FoodKind.FOOD),
             servingWeightGrams = jsonObject.getDouble("servingWeightGrams"),
+            servingVolumeMilliliters = jsonObject.optDouble("servingVolumeMilliliters", 0.0),
             nutritionPerServing = parseNutrition(jsonObject.getJSONObject("nutritionPerServing")),
             servingsPerContainer = jsonObject.optNullableDouble("servingsPerContainer"),
             createdAtEpochMillis = jsonObject.optLong("createdAtEpochMillis")
@@ -96,9 +102,13 @@ class CalorieRepository(context: Context) {
             foodName = jsonObject.getString("foodName"),
             servingDescription = jsonObject.getString("servingDescription"),
             mealType = MealType.valueOf(jsonObject.getString("mealType")),
+            foodKind = runCatching {
+                FoodKind.valueOf(jsonObject.optString("foodKind", FoodKind.FOOD.name))
+            }.getOrDefault(FoodKind.FOOD),
             inputMode = InputMode.valueOf(jsonObject.getString("inputMode")),
             consumedServings = jsonObject.getDouble("consumedServings"),
             consumedWeightGrams = jsonObject.getDouble("consumedWeightGrams"),
+            consumedVolumeMilliliters = jsonObject.optDouble("consumedVolumeMilliliters", 0.0),
             calculatedNutrition = parseNutrition(jsonObject.getJSONObject("calculatedNutrition")),
             loggedAtEpochMillis = jsonObject.optLong("loggedAtEpochMillis")
         )
@@ -109,6 +119,11 @@ class CalorieRepository(context: Context) {
         val showProteinInLivePreview = jsonObject.optBoolean("showProteinInLivePreview", true)
         val showCarbsInLivePreview = jsonObject.optBoolean("showCarbsInLivePreview", true)
         val showFatInLivePreview = jsonObject.optBoolean("showFatInLivePreview", true)
+        val showSaturatedFatInLivePreview = jsonObject.optBoolean("showSaturatedFatInLivePreview", false)
+        val showFiberInLivePreview = jsonObject.optBoolean("showFiberInLivePreview", false)
+        val showSugarsInLivePreview = jsonObject.optBoolean("showSugarsInLivePreview", false)
+        val showSodiumInLivePreview = jsonObject.optBoolean("showSodiumInLivePreview", false)
+        val showPotassiumInLivePreview = jsonObject.optBoolean("showPotassiumInLivePreview", false)
 
         val mainMacro = readMainMacro(
             jsonObject = jsonObject,
@@ -117,6 +132,47 @@ class CalorieRepository(context: Context) {
             showCarbsInLivePreview = showCarbsInLivePreview,
             showFatInLivePreview = showFatInLivePreview
         )
+
+        val macroSummarySelection = jsonObject.optJSONArray("macroSummarySelection")
+            ?.let { selectionArray ->
+                val parsedSelection = mutableSetOf<MainMacro>()
+                for (index in 0 until selectionArray.length()) {
+                    val value = selectionArray.optString(index).orEmpty()
+                    if (value.isBlank()) {
+                        continue
+                    }
+                    runCatching {
+                        parsedSelection += MainMacro.valueOf(value)
+                    }
+                }
+                parsedSelection.filterNot { it == MainMacro.CALORIES }.toSet()
+            }
+            ?: buildSet {
+                if (showProteinInLivePreview) {
+                    add(MainMacro.PROTEIN)
+                }
+                if (showCarbsInLivePreview) {
+                    add(MainMacro.CARBS)
+                }
+                if (showFatInLivePreview) {
+                    add(MainMacro.FAT)
+                }
+                if (showSaturatedFatInLivePreview) {
+                    add(MainMacro.SATURATED_FAT)
+                }
+                if (showFiberInLivePreview) {
+                    add(MainMacro.FIBER)
+                }
+                if (showSugarsInLivePreview) {
+                    add(MainMacro.SUGARS)
+                }
+                if (showSodiumInLivePreview) {
+                    add(MainMacro.SODIUM)
+                }
+                if (showPotassiumInLivePreview) {
+                    add(MainMacro.POTASSIUM)
+                }
+            }
 
         return Goals(
             dailyCalories = jsonObject.optDouble("dailyCalories", 2000.0),
@@ -131,16 +187,13 @@ class CalorieRepository(context: Context) {
             preferredUnit = WeightUnit.valueOf(
                 jsonObject.optString("preferredUnit", WeightUnit.GRAMS.name)
             ),
+            preferredLiquidUnit = VolumeUnit.valueOf(
+                jsonObject.optString("preferredLiquidUnit", VolumeUnit.MILLILITERS.name)
+            ),
+            useMaterialYou = jsonObject.optBoolean("useMaterialYou", true),
             mainMacro = mainMacro,
             showCaloriesInLivePreview = showCaloriesInLivePreview,
-            showProteinInLivePreview = showProteinInLivePreview,
-            showCarbsInLivePreview = showCarbsInLivePreview,
-            showFatInLivePreview = showFatInLivePreview,
-            showSaturatedFatInLivePreview = jsonObject.optBoolean("showSaturatedFatInLivePreview", false),
-            showFiberInLivePreview = jsonObject.optBoolean("showFiberInLivePreview", false),
-            showSugarsInLivePreview = jsonObject.optBoolean("showSugarsInLivePreview", false),
-            showSodiumInLivePreview = jsonObject.optBoolean("showSodiumInLivePreview", false),
-            showPotassiumInLivePreview = jsonObject.optBoolean("showPotassiumInLivePreview", false)
+            macroSummarySelection = macroSummarySelection
         )
     }
 
@@ -153,8 +206,29 @@ class CalorieRepository(context: Context) {
             saturatedFatGrams = jsonObject.optNullableDouble("saturatedFatGrams"),
             fiberGrams = jsonObject.optNullableDouble("fiberGrams"),
             sugarGrams = jsonObject.optNullableDouble("sugarGrams"),
+            addedSugarsGrams = jsonObject.optNullableDouble("addedSugarsGrams"),
+            sugarAlcoholsGrams = jsonObject.optNullableDouble("sugarAlcoholsGrams"),
             sodiumMilligrams = jsonObject.optNullableDouble("sodiumMilligrams"),
-            potassiumMilligrams = jsonObject.optNullableDouble("potassiumMilligrams")
+            potassiumMilligrams = jsonObject.optNullableDouble("potassiumMilligrams"),
+            cholesterolMilligrams = jsonObject.optNullableDouble("cholesterolMilligrams"),
+            transFatGrams = jsonObject.optNullableDouble("transFatGrams"),
+            monounsaturatedFatGrams = jsonObject.optNullableDouble("monounsaturatedFatGrams"),
+            polyunsaturatedFatGrams = jsonObject.optNullableDouble("polyunsaturatedFatGrams"),
+            omega3FattyAcidsGrams = jsonObject.optNullableDouble("omega3FattyAcidsGrams"),
+            omega6FattyAcidsGrams = jsonObject.optNullableDouble("omega6FattyAcidsGrams"),
+            calciumMilligrams = jsonObject.optNullableDouble("calciumMilligrams"),
+            chlorideMilligrams = jsonObject.optNullableDouble("chlorideMilligrams"),
+            folateMicrograms = jsonObject.optNullableDouble("folateMicrograms"),
+            ironMilligrams = jsonObject.optNullableDouble("ironMilligrams"),
+            magnesiumMilligrams = jsonObject.optNullableDouble("magnesiumMilligrams"),
+            phosphorusMilligrams = jsonObject.optNullableDouble("phosphorusMilligrams"),
+            vitaminAMicrograms = jsonObject.optNullableDouble("vitaminAMicrograms"),
+            vitaminB12Micrograms = jsonObject.optNullableDouble("vitaminB12Micrograms"),
+            vitaminCMilligrams = jsonObject.optNullableDouble("vitaminCMilligrams"),
+            vitaminDMicrograms = jsonObject.optNullableDouble("vitaminDMicrograms"),
+            vitaminEMilligrams = jsonObject.optNullableDouble("vitaminEMilligrams"),
+            vitaminKMicrograms = jsonObject.optNullableDouble("vitaminKMicrograms"),
+            zincMilligrams = jsonObject.optNullableDouble("zincMilligrams")
         )
     }
 
@@ -163,7 +237,9 @@ class CalorieRepository(context: Context) {
             .put("id", food.id)
             .put("name", food.name)
             .put("servingDescription", food.servingDescription)
+            .put("kind", food.kind.name)
             .put("servingWeightGrams", food.servingWeightGrams)
+            .put("servingVolumeMilliliters", food.servingVolumeMilliliters)
             .put("nutritionPerServing", serializeNutrition(food.nutritionPerServing))
             .putNullable("servingsPerContainer", food.servingsPerContainer)
             .put("createdAtEpochMillis", food.createdAtEpochMillis)
@@ -176,9 +252,11 @@ class CalorieRepository(context: Context) {
             .put("foodName", logEntry.foodName)
             .put("servingDescription", logEntry.servingDescription)
             .put("mealType", logEntry.mealType.name)
+            .put("foodKind", logEntry.foodKind.name)
             .put("inputMode", logEntry.inputMode.name)
             .put("consumedServings", logEntry.consumedServings)
             .put("consumedWeightGrams", logEntry.consumedWeightGrams)
+            .put("consumedVolumeMilliliters", logEntry.consumedVolumeMilliliters)
             .put("calculatedNutrition", serializeNutrition(logEntry.calculatedNutrition))
             .put("loggedAtEpochMillis", logEntry.loggedAtEpochMillis)
     }
@@ -195,16 +273,18 @@ class CalorieRepository(context: Context) {
             .putNullable("sodiumTargetMilligrams", goals.sodiumTargetMilligrams)
             .putNullable("potassiumTargetMilligrams", goals.potassiumTargetMilligrams)
             .put("preferredUnit", goals.preferredUnit.name)
+            .put("preferredLiquidUnit", goals.preferredLiquidUnit.name)
+            .put("useMaterialYou", goals.useMaterialYou)
             .put("mainMacro", goals.mainMacro.name)
             .put("showCaloriesInLivePreview", goals.showCaloriesInLivePreview)
-            .put("showProteinInLivePreview", goals.showProteinInLivePreview)
-            .put("showCarbsInLivePreview", goals.showCarbsInLivePreview)
-            .put("showFatInLivePreview", goals.showFatInLivePreview)
-            .put("showSaturatedFatInLivePreview", goals.showSaturatedFatInLivePreview)
-            .put("showFiberInLivePreview", goals.showFiberInLivePreview)
-            .put("showSugarsInLivePreview", goals.showSugarsInLivePreview)
-            .put("showSodiumInLivePreview", goals.showSodiumInLivePreview)
-            .put("showPotassiumInLivePreview", goals.showPotassiumInLivePreview)
+            .put(
+                "macroSummarySelection",
+                JSONArray().apply {
+                    goals.macroSummarySelection
+                        .filterNot { it == MainMacro.CALORIES }
+                        .forEach { put(it.name) }
+                }
+            )
     }
 
     private fun serializeNutrition(nutritionSnapshot: NutritionSnapshot): JSONObject {
@@ -216,8 +296,29 @@ class CalorieRepository(context: Context) {
             .putNullable("saturatedFatGrams", nutritionSnapshot.saturatedFatGrams)
             .putNullable("fiberGrams", nutritionSnapshot.fiberGrams)
             .putNullable("sugarGrams", nutritionSnapshot.sugarGrams)
+            .putNullable("addedSugarsGrams", nutritionSnapshot.addedSugarsGrams)
+            .putNullable("sugarAlcoholsGrams", nutritionSnapshot.sugarAlcoholsGrams)
             .putNullable("sodiumMilligrams", nutritionSnapshot.sodiumMilligrams)
             .putNullable("potassiumMilligrams", nutritionSnapshot.potassiumMilligrams)
+            .putNullable("cholesterolMilligrams", nutritionSnapshot.cholesterolMilligrams)
+            .putNullable("transFatGrams", nutritionSnapshot.transFatGrams)
+            .putNullable("monounsaturatedFatGrams", nutritionSnapshot.monounsaturatedFatGrams)
+            .putNullable("polyunsaturatedFatGrams", nutritionSnapshot.polyunsaturatedFatGrams)
+            .putNullable("omega3FattyAcidsGrams", nutritionSnapshot.omega3FattyAcidsGrams)
+            .putNullable("omega6FattyAcidsGrams", nutritionSnapshot.omega6FattyAcidsGrams)
+            .putNullable("calciumMilligrams", nutritionSnapshot.calciumMilligrams)
+            .putNullable("chlorideMilligrams", nutritionSnapshot.chlorideMilligrams)
+            .putNullable("folateMicrograms", nutritionSnapshot.folateMicrograms)
+            .putNullable("ironMilligrams", nutritionSnapshot.ironMilligrams)
+            .putNullable("magnesiumMilligrams", nutritionSnapshot.magnesiumMilligrams)
+            .putNullable("phosphorusMilligrams", nutritionSnapshot.phosphorusMilligrams)
+            .putNullable("vitaminAMicrograms", nutritionSnapshot.vitaminAMicrograms)
+            .putNullable("vitaminB12Micrograms", nutritionSnapshot.vitaminB12Micrograms)
+            .putNullable("vitaminCMilligrams", nutritionSnapshot.vitaminCMilligrams)
+            .putNullable("vitaminDMicrograms", nutritionSnapshot.vitaminDMicrograms)
+            .putNullable("vitaminEMilligrams", nutritionSnapshot.vitaminEMilligrams)
+            .putNullable("vitaminKMicrograms", nutritionSnapshot.vitaminKMicrograms)
+            .putNullable("zincMilligrams", nutritionSnapshot.zincMilligrams)
     }
 
     private fun JSONObject.putNullable(key: String, value: Double?): JSONObject {

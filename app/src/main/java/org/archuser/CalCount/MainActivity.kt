@@ -9,6 +9,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
+import com.google.android.material.color.DynamicColors
 import com.google.android.material.snackbar.Snackbar
 import org.archuser.CalCount.databinding.ActivityMainBinding
 import org.archuser.CalCount.ui.AppViewModel
@@ -25,6 +26,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (viewModel.uiState.value?.goals?.useMaterialYou != false) {
+            DynamicColors.applyToActivityIfAvailable(this)
+        }
+
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)

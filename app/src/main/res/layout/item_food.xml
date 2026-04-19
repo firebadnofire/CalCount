@@ -17,7 +17,7 @@
             android:layout_height="wrap_content"
             android:text="Protein Bar"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:textColor="@color/color_on_surface" />
+            android:textColor="?attr/colorOnSurface" />
 
         <TextView
             android:id="@+id/food_serving"
@@ -26,7 +26,7 @@
             android:layout_marginTop="6dp"
             android:text="1 bar • 55 g"
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <TextView
             android:id="@+id/food_nutrition"
@@ -35,7 +35,7 @@
             android:layout_marginTop="6dp"
             android:text="220 cal • Protein 20g • Carbs 24g • Fat 8g"
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface" />
+            android:textColor="?attr/colorOnSurface" />
 
         <TextView
             android:id="@+id/food_optional_info"
@@ -44,7 +44,7 @@
             android:layout_marginTop="6dp"
             android:text="Reusable saved food"
             android:textAppearance="?attr/textAppearanceLabelMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <LinearLayout
             android:layout_width="match_parent"

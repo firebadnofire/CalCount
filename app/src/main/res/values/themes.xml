@@ -13,15 +13,16 @@
         <item name="colorSurfaceVariant">@color/color_surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/color_on_surface_variant</item>
         <item name="colorOutline">@color/color_outline</item>
-        <item name="android:colorBackground">@color/color_background</item>
-        <item name="android:windowBackground">@color/color_background</item>
+        <item name="colorOutlineVariant">@color/color_outline_variant</item>
+        <item name="android:colorBackground">?attr/colorSurface</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@color/color_surface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
         <item name="materialCardViewElevatedStyle">@style/Widget.CalCount.ElevatedCard</item>
     </style>
 
     <style name="Widget.CalCount.ElevatedCard" parent="Widget.Material3.CardView.Elevated">
-        <item name="strokeColor">@color/color_outline_variant</item>
+        <item name="strokeColor">?attr/colorOutlineVariant</item>
         <item name="strokeWidth">1dp</item>
     </style>
 </resources>

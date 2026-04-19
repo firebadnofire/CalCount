@@ -1,11 +1,13 @@
 package org.archuser.CalCount.ui
 
+import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.Goals
 import org.archuser.CalCount.data.model.InputMode
 import org.archuser.CalCount.data.model.LogEntry
 import org.archuser.CalCount.data.model.MacroUnit
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.NutritionSnapshot
+import org.archuser.CalCount.data.model.VolumeUnit
 import org.archuser.CalCount.data.model.WeightUnit
 import org.archuser.CalCount.domain.NutritionCalculator
 import java.text.DecimalFormat
@@ -45,6 +47,11 @@ object UiFormatters {
     fun weight(valueGrams: Double, unit: WeightUnit): String {
         val convertedWeight = NutritionCalculator.convertFromGrams(valueGrams, unit)
         return "${number(convertedWeight)} ${unit.shortLabel}"
+    }
+
+    fun volume(valueMilliliters: Double, unit: VolumeUnit): String {
+        val convertedVolume = NutritionCalculator.convertFromMilliliters(valueMilliliters, unit)
+        return "${number(convertedVolume)} ${unit.shortLabel}"
     }
 
     fun macroLine(
@@ -110,16 +117,21 @@ object UiFormatters {
             MacroUnit.CALORIES -> calories(value)
             MacroUnit.GRAMS -> "${number(value)}g"
             MacroUnit.MILLIGRAMS -> "${number(value)}mg"
+            MacroUnit.MICROGRAMS -> "${number(value)}mcg"
         }
     }
 
-    fun entryAmount(logEntry: LogEntry, preferredUnit: WeightUnit): String {
+    fun entryAmount(logEntry: LogEntry, goals: Goals): String {
+        val amountLabel = when (logEntry.foodKind) {
+            FoodKind.FOOD -> weight(logEntry.consumedWeightGrams, goals.preferredUnit)
+            FoodKind.LIQUID -> volume(logEntry.consumedVolumeMilliliters, goals.preferredLiquidUnit)
+        }
+
         return when (logEntry.inputMode) {
             InputMode.SERVINGS -> "${servings(logEntry.consumedServings)} • " +
-                weight(logEntry.consumedWeightGrams, preferredUnit)
+                amountLabel
 
-            InputMode.WEIGHT -> "${weight(logEntry.consumedWeightGrams, preferredUnit)} • " +
-                servings(logEntry.consumedServings)
+            InputMode.WEIGHT -> "$amountLabel • ${servings(logEntry.consumedServings)}"
         }
     }
 
@@ -175,7 +187,17 @@ object UiFormatters {
         goals: Goals
     ): List<String> {
         val mainMacro = goals.mainMacro
-        return MainMacro.entries
+        val lines = mutableListOf<String>()
+        if (goals.showCaloriesInLivePreview) {
+            lines += nutrientProgress(
+                label = "Calories",
+                consumed = nutritionSnapshot.calories,
+                target = goals.dailyCalories,
+                unit = " cal"
+            )
+        }
+
+        lines += MainMacro.entries
             .filter { it != MainMacro.CALORIES }
             .filter { macro ->
                 macro.targetOf(goals) != null ||
@@ -188,8 +210,11 @@ object UiFormatters {
                     MacroUnit.GRAMS -> nutrientProgress(macro.displayName, consumed, target, unit = "g")
                     MacroUnit.MILLIGRAMS -> nutrientProgress(macro.displayName, consumed, target, unit = "mg")
                     MacroUnit.CALORIES -> nutrientProgress(macro.displayName, consumed, target, unit = " cal")
+                    MacroUnit.MICROGRAMS -> nutrientProgress(macro.displayName, consumed, target, unit = "mcg")
                 }
             }
+
+        return lines
     }
 
     private fun nutrientProgress(label: String, consumed: Double, target: Double?, unit: String): String {

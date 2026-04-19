@@ -5,4 +5,4 @@
     android:layout_height="wrap_content"
     android:text="Protein 0g"
     android:textAppearance="?attr/textAppearanceBodyLarge"
-    android:textColor="@color/color_on_surface" />
+    android:textColor="?attr/colorOnSurface" />

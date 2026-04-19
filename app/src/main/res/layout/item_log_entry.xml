@@ -23,7 +23,7 @@
                 android:layout_weight="1"
                 android:text="Greek yogurt"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
-                android:textColor="@color/color_on_surface" />
+                android:textColor="?attr/colorOnSurface" />
 
             <TextView
                 android:id="@+id/food_calories"
@@ -31,7 +31,7 @@
                 android:layout_height="wrap_content"
                 android:text="120 cal"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
-                android:textColor="@color/color_primary" />
+                android:textColor="?attr/colorPrimary" />
         </LinearLayout>
 
         <TextView
@@ -41,7 +41,7 @@
             android:layout_marginTop="8dp"
             android:text="1 serving • 170 g"
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface" />
+            android:textColor="?attr/colorOnSurface" />
 
         <TextView
             android:id="@+id/food_macros"
@@ -50,7 +50,7 @@
             android:layout_marginTop="6dp"
             android:text="Protein 17g • Carbs 8g • Fat 0g"
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <TextView
             android:id="@+id/food_meta"
@@ -59,6 +59,6 @@
             android:layout_marginTop="6dp"
             android:text="1 cup • 8:30 AM"
             android:textAppearance="?attr/textAppearanceLabelMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

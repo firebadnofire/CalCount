@@ -16,7 +16,7 @@
             android:layout_height="wrap_content"
             android:text="Reusable foods"
             android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:textColor="@color/color_on_background" />
+            android:textColor="?attr/colorOnBackground" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -24,7 +24,7 @@
             android:layout_marginTop="4dp"
             android:text="Search saved foods, reopen recent choices, or log a food in one tap."
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -45,11 +45,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@color/color_primary_container"
+            android:background="?attr/colorPrimaryContainer"
             android:padding="16dp"
             android:text="Your food library is empty. Use the Create Food tab to add your first item."
             android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textColor="@color/color_on_primary_container"
+            android:textColor="?attr/colorOnPrimaryContainer"
             android:visibility="gone" />
 
         <LinearLayout
@@ -65,7 +65,7 @@
                 android:layout_height="wrap_content"
                 android:text="Recent foods"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
-                android:textColor="@color/color_on_surface" />
+                android:textColor="?attr/colorOnSurface" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -73,7 +73,7 @@
                 android:layout_marginTop="2dp"
                 android:text="Quick log shortcuts"
                 android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="@color/color_on_surface_variant" />
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/recent_foods_chips"

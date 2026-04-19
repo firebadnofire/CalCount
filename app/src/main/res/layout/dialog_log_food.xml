@@ -20,7 +20,7 @@
             android:layout_height="wrap_content"
             android:text="1 bar = 55 g"
             android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/meal_type_layout"
@@ -108,7 +108,7 @@
                     android:layout_marginTop="10dp"
                     android:text="Enter an amount to preview the serving math."
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="@color/color_on_surface_variant" />
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <TextView
                     android:id="@+id/preview_calories"
@@ -117,7 +117,7 @@
                     android:layout_marginTop="12dp"
                     android:text="Calories will update here."
                     android:textAppearance="?attr/textAppearanceTitleMedium"
-                    android:textColor="@color/color_primary" />
+                    android:textColor="?attr/colorPrimary" />
 
                 <TextView
                     android:id="@+id/preview_secondary_calories"
@@ -126,7 +126,7 @@
                     android:layout_marginTop="4dp"
                     android:text="Calories will update here."
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="@color/color_on_surface_variant"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:visibility="gone" />
 
                 <TextView
@@ -136,7 +136,7 @@
                     android:layout_marginTop="10dp"
                     android:text="Macros will update here."
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="@color/color_on_surface_variant" />
+                    android:textColor="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>

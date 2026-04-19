@@ -15,7 +15,7 @@
             android:layout_height="wrap_content"
             android:text="History"
             android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:textColor="@color/color_on_background" />
+            android:textColor="?attr/colorOnBackground" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -23,18 +23,18 @@
             android:layout_marginTop="4dp"
             android:text="Revisit previous days."
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <TextView
             android:id="@+id/history_empty_state"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@color/color_primary_container"
+            android:background="?attr/colorPrimaryContainer"
             android:padding="16dp"
             android:text="No history yet. Log foods to start tracking days."
             android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textColor="@color/color_on_primary_container"
+            android:textColor="?attr/colorOnPrimaryContainer"
             android:visibility="gone" />
 
         <LinearLayout
@@ -45,4 +45,3 @@
             android:orientation="vertical" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
-

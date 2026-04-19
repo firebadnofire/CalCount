@@ -15,7 +15,7 @@
             android:layout_height="wrap_content"
             android:text="Goals and preferences"
             android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:textColor="@color/color_on_background" />
+            android:textColor="?attr/colorOnBackground" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -23,7 +23,7 @@
             android:layout_marginTop="4dp"
             android:text="Set the calorie goal and macro targets that drive the Today dashboard."
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -166,6 +166,28 @@
                         android:layout_height="wrap_content"
                         android:inputType="none" />
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/preferred_liquid_unit_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="Preferred liquid unit">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/preferred_liquid_unit_dropdown"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/use_material_you_checkbox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Use Material You colors" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -192,7 +214,7 @@
                     android:layout_marginTop="6dp"
                     android:text="Choose the main macro and which nutrition fields appear in the Log Food live preview and Today macro summary."
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="@color/color_on_surface_variant" />
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/main_macro_layout"
@@ -216,53 +238,48 @@
                     android:layout_marginTop="8dp"
                     android:text="Show calories under main macro" />
 
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_protein_preview_checkbox"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Show protein" />
+                    android:layout_marginTop="12dp"
+                    android:text="Main nutrients"
+                    android:textAppearance="?attr/textAppearanceTitleSmall" />
 
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_carbs_preview_checkbox"
+                <LinearLayout
+                    android:id="@+id/main_macros_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Show carbs" />
+                    android:orientation="vertical" />
 
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_fat_preview_checkbox"
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/toggle_useful_macros_button"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Show fat" />
+                    android:layout_marginTop="12dp"
+                    android:text="Show useful nutrients" />
 
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_saturated_fat_preview_checkbox"
+                <LinearLayout
+                    android:id="@+id/useful_macros_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Show saturated fat" />
+                    android:orientation="vertical"
+                    android:visibility="gone" />
 
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_fiber_preview_checkbox"
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/toggle_extended_macros_button"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Show fiber" />
+                    android:layout_marginTop="12dp"
+                    android:text="Show extended nutrients" />
 
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_sugars_preview_checkbox"
+                <LinearLayout
+                    android:id="@+id/extended_macros_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Show sugars" />
-
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_sodium_preview_checkbox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Show sodium" />
-
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/show_potassium_preview_checkbox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Show potassium" />
+                    android:orientation="vertical"
+                    android:visibility="gone" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -273,7 +290,7 @@
             android:layout_marginTop="16dp"
             android:text="Weight entries are converted to grams internally."
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="@color/color_on_surface_variant" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/save_settings_button"

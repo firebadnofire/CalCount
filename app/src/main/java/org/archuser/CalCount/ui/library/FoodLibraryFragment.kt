@@ -12,6 +12,7 @@ import com.google.android.material.chip.Chip
 import org.archuser.CalCount.MainActivity
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.Food
+import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.Goals
 import org.archuser.CalCount.databinding.FragmentFoodLibraryBinding
 import org.archuser.CalCount.databinding.ItemFoodBinding
@@ -113,8 +114,13 @@ class FoodLibraryFragment : Fragment() {
         foods.forEach { food ->
             val itemBinding = ItemFoodBinding.inflate(layoutInflater, container, false)
             itemBinding.foodName.text = food.name
+            val servingAmount = if (food.kind == FoodKind.LIQUID) {
+                UiFormatters.volume(food.servingVolumeMilliliters, goals.preferredLiquidUnit)
+            } else {
+                UiFormatters.grams(food.servingWeightGrams)
+            }
             itemBinding.foodServing.text =
-                "${food.servingDescription} • ${UiFormatters.grams(food.servingWeightGrams)}"
+                "${food.servingDescription} • $servingAmount"
             val mainMacroValue = UiFormatters.mainMacroLabeledValue(food.nutritionPerServing, goals.mainMacro)
             val macroLine = UiFormatters.macroSummarySelectionLine(food.nutritionPerServing, goals)
             itemBinding.foodNutrition.text = if (macroLine.isNullOrBlank()) {

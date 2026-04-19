@@ -9,6 +9,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.LogEntry
+import org.archuser.CalCount.data.model.MacroUnit
+import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.MealType
 import org.archuser.CalCount.databinding.FragmentTodayBinding
 import org.archuser.CalCount.databinding.ItemLogEntryBinding
@@ -64,17 +66,31 @@ class DayDetailFragment : Fragment() {
     private fun render(state: AppUiState) {
         val zoneId = ZoneId.systemDefault()
         val dayNutrition = state.nutritionForDate(day, zoneId)
-        val remainingCalories = state.goals.dailyCalories - dayNutrition.calories
         val dayLogs = state.logsForDate(day, zoneId)
+        val mainMacro = state.goals.mainMacro
 
         binding.todayDate.text = day.format(titleFormatter)
-
-        binding.caloriesConsumedValue.text = UiFormatters.calories(dayNutrition.calories)
-        binding.caloriesGoalValue.text = UiFormatters.exactCalories(state.goals.dailyCalories)
-        binding.caloriesRemainingValue.text = if (remainingCalories >= 0.0) {
-            "${UiFormatters.calories(remainingCalories)} remaining"
+        binding.todaySubtitle.text = if (mainMacro == MainMacro.CALORIES) {
+            "Daily calories at a glance"
         } else {
-            "${UiFormatters.calories(abs(remainingCalories))} over"
+            "Daily ${mainMacro.displayName} at a glance"
+        }
+
+        binding.mainMacroConsumedLabel.text = "${mainMacro.displayName} consumed"
+        binding.mainMacroConsumedValue.text = UiFormatters.mainMacroCompactValue(dayNutrition, mainMacro)
+
+        val shouldShowSecondaryCalories = state.goals.showCaloriesInLivePreview && mainMacro != MainMacro.CALORIES
+        binding.mainMacroSecondaryCalories.isVisible = shouldShowSecondaryCalories
+        if (shouldShowSecondaryCalories) {
+            binding.mainMacroSecondaryCalories.text = "Calories ${UiFormatters.calories(dayNutrition.calories)}"
+        }
+
+        val target = mainMacro.targetOf(state.goals)
+        binding.mainMacroGoalRow.isVisible = target != null
+        if (target != null) {
+            binding.mainMacroGoalValue.text = formatTargetValue(target, mainMacro)
+            val remaining = target - mainMacro.valueOf(dayNutrition)
+            binding.mainMacroRemainingValue.text = formatRemainingValue(remaining, mainMacro)
         }
 
         renderNutritionSummary(
@@ -138,7 +154,7 @@ class DayDetailFragment : Fragment() {
         entries.forEach { entry ->
             val itemBinding = ItemLogEntryBinding.inflate(layoutInflater, container, false)
             itemBinding.foodName.text = entry.foodName
-            itemBinding.foodAmount.text = UiFormatters.entryAmount(entry, state.goals.preferredUnit)
+            itemBinding.foodAmount.text = UiFormatters.entryAmount(entry, state.goals)
             itemBinding.foodCalories.text =
                 UiFormatters.mainMacroLabeledValue(entry.calculatedNutrition, state.goals.mainMacro)
             itemBinding.foodMacros.text =
@@ -156,4 +172,24 @@ class DayDetailFragment : Fragment() {
 
     private val Int.dp: Int
         get() = (this * resources.displayMetrics.density).toInt()
+
+    private fun formatTargetValue(target: Double, macro: MainMacro): String {
+        return when (macro.unit) {
+            MacroUnit.CALORIES -> UiFormatters.exactCalories(target)
+            MacroUnit.GRAMS -> "${UiFormatters.number(target)}g"
+            MacroUnit.MILLIGRAMS -> "${UiFormatters.number(target)}mg"
+            MacroUnit.MICROGRAMS -> "${UiFormatters.number(target)}mcg"
+        }
+    }
+
+    private fun formatRemainingValue(remaining: Double, macro: MainMacro): String {
+        val label = if (remaining >= 0.0) "remaining" else "over"
+        val formatted = when (macro.unit) {
+            MacroUnit.CALORIES -> UiFormatters.calories(abs(remaining))
+            MacroUnit.GRAMS -> "${UiFormatters.number(abs(remaining))}g"
+            MacroUnit.MILLIGRAMS -> "${UiFormatters.number(abs(remaining))}mg"
+            MacroUnit.MICROGRAMS -> "${UiFormatters.number(abs(remaining))}mcg"
+        }
+        return "$formatted $label"
+    }
 }
