@@ -114,13 +114,12 @@ The workflow validates all required secrets before it builds:
 | `KEY_PASSWORD` | Password for the Android signing key. |
 | `KEYSTORE_BASE64` | Base64-encoded Android keystore file. |
 | `KEYSTORE_PASSWORD` | Password for the Android keystore. |
-| `GH_KEY` | GitHub access token used to migrate to and publish to `github.com/<GH_KEY-authenticated-user>/CalCount`. |
+| `GH_KEY` | GitHub access token used to migrate to and publish to `github.com/firebadnofire/CalCount`. |
 
-`GH_KEY` should have enough permission to create `CalCount` under the GH_KEY-authenticated user if it
-does not exist, push Git refs to it, create and edit releases, and upload release
-assets. For a classic token, use `repo` scope. For a fine-grained token, grant
-enough account or organization access to create the repository and repository
-`Contents: Read and write` for the destination after it exists.
+`GH_KEY` should have enough permission to create `github.com/firebadnofire/CalCount`
+if it does not exist, push Git refs to it, create and edit releases, and upload
+release assets. For a classic token, use `repo` scope. For a fine-grained token,
+grant repository `Contents: Read and write` for the destination after it exists.
 
 Secret scope matters. `GH_KEY` must be available to this repository's workflows.
 Add it in one of these places:
@@ -214,19 +213,15 @@ GitHub release publishing happens.
 Target repository:
 
 ```text
-github.com/{GH_KEY-authenticated-user}/CalCount
+github.com/firebadnofire/CalCount
 ```
 
-The workflow stores the repository name explicitly in a job-level environment
-variable:
+The workflow stores that target explicitly in job-level environment variables:
 
 ```yaml
+GITHUB_TARGET_OWNER: firebadnofire
 GITHUB_TARGET_REPO: CalCount
 ```
-
-By default, the GitHub owner is the account authenticated by `GH_KEY`. To publish
-to a different GitHub user or organization, add `GITHUB_TARGET_OWNER` and make
-sure `GH_KEY` has permission to create and push to that destination.
 
 Do not derive the GitHub destination from `github.repository` or
 `github.repository_owner` on Forgejo. Those values describe the source repository
@@ -243,8 +238,9 @@ The step:
 The migration logic lives in the `github_migrate` shell function. The release
 publishing step runs only after that function completes successfully.
 
-For default user-owned repositories, GitHub creates missing repositories under
-the user authenticated by `GH_KEY`. For organization-owned repositories, set
+For this user-owned repository, the token must authenticate as `firebadnofire`,
+because GitHub's user repository creation endpoint creates repositories under
+the authenticated user. For organization-owned repositories, change
 `GITHUB_TARGET_OWNER` and make sure the token can create repositories in that
 organization.
 
@@ -256,7 +252,7 @@ run GitHub Actions.
 Target repository:
 
 ```text
-github.com/{GH_KEY-authenticated-user}/CalCount
+github.com/firebadnofire/CalCount
 ```
 
 The step:
@@ -322,16 +318,11 @@ Remove the `Publish Forgejo release` step. Keep `GH_KEY` validation.
 
 ### Change the GitHub target repository
 
-Edit this job-level environment variable:
+Edit these job-level environment variables:
 
 ```yaml
+GITHUB_TARGET_OWNER: firebadnofire
 GITHUB_TARGET_REPO: CalCount
-```
-
-To publish to an organization or a different user, also add:
-
-```yaml
-GITHUB_TARGET_OWNER: target-owner
 ```
 
 Make sure `GH_KEY` has permission for the new target repository.

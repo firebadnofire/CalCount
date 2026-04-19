@@ -24,6 +24,7 @@ export RELEASE_KEYSTORE_PATH="${temp_dir}/calcount-release.keystore"
 cp "${apk_files[0]}" "dist/calcount-${tag}.apk"
 asset_path="dist/calcount-${tag}.apk"
 release_name="CalCount ${tag}"
+GITHUB_TARGET_OWNER: firebadnofire
 GITHUB_TARGET_REPO: CalCount
 ```
 
@@ -104,11 +105,10 @@ KEYSTORE_PASSWORD
 GH_KEY
 ```
 
-`GH_KEY` must be able to create the GitHub repository under the authenticated
-GitHub user if it is missing, push Git refs to it, create and edit releases, and
-upload release assets in `CalCount`. For a classic token, use `repo` scope. For a
-fine-grained token, grant repository `Contents: Read and write` for the
-destination after it exists.
+`GH_KEY` must be able to create `github.com/firebadnofire/CalCount` if it is
+missing, push Git refs to it, create and edit releases, and upload release
+assets. For a classic token, use `repo` scope. For a fine-grained token, grant
+repository `Contents: Read and write` for the destination after it exists.
 
 Generate `KEYSTORE_BASE64` from the keystore file with:
 

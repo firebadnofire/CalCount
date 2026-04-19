@@ -13,6 +13,7 @@ jobs:
       image: ubuntu:22.04
       options: --network ci-network
     env:
+      GITHUB_TARGET_OWNER: firebadnofire
       GITHUB_TARGET_REPO: CalCount
 
     steps:
