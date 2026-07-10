@@ -9,12 +9,12 @@ on:
 jobs:
   release:
     runs-on: ubuntu-22.04
-    container:
-      image: ubuntu:22.04
-      options: --network ci-network
     env:
       GITHUB_TARGET_OWNER: firebadnofire
       GITHUB_TARGET_REPO: CalCount
+    container:
+      image: ubuntu:22.04
+      options: --network ci-network
 
     steps:
       - name: Prepare APT and action runtime
@@ -80,23 +80,26 @@ jobs:
         shell: bash
         env:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          GH_KEY: ${{ secrets.GH_KEY }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          GH_KEY: ${{ secrets.GH_KEY }}
         run: |
           set -euo pipefail
 
-          for name in GH_KEY KEY_ALIAS KEY_PASSWORD KEYSTORE_BASE64 KEYSTORE_PASSWORD; do
+          for name in KEY_ALIAS KEY_PASSWORD KEYSTORE_BASE64 KEYSTORE_PASSWORD; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required secret: ${name}" >&2
-              if [ "$name" = "GH_KEY" ]; then
-                echo "GH_KEY must be available to this repository's workflow." >&2
-                echo "For an owner/organization repository, add it under the repository or owner/organization Actions secrets, not only under personal user settings." >&2
-              fi
               exit 1
             fi
           done
+
+          if [ -z "${GH_KEY:-}" ]; then
+            echo "Missing required secret: GH_KEY" >&2
+            exit 1
+          fi
+
+          echo "GitHub publishing enabled for ${GITHUB_TARGET_OWNER}/${GITHUB_TARGET_REPO}."
 
           for tool in base64 curl git jq; do
             if ! command -v "$tool" >/dev/null 2>&1; then
@@ -150,6 +153,71 @@ jobs:
           mkdir -p dist
           cp "${apk_files[0]}" "dist/calcount-${tag}.apk"
 
+      - name: Migrate repository to GitHub
+        shell: bash
+        env:
+          GH_KEY: ${{ secrets.GH_KEY }}
+        run: |
+          set -euo pipefail
+
+          owner="${GITHUB_TARGET_OWNER:?Missing GitHub target owner}"
+          repo="${GITHUB_TARGET_REPO:?Missing GitHub target repo}"
+          token="${GH_KEY:?Missing GitHub token}"
+          api_url="https://api.github.com"
+          remote_url="https://${token}@github.com/${owner}/${repo}.git"
+
+          github_request() {
+            local method="$1"
+            local url="$2"
+            local response_file
+            local status
+            shift 2
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --output "$response_file" \
+              --write-out "%{http_code}" \
+              --request "$method" \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer ${token}" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "$@" \
+              "$url")"
+            if [ "$status" -lt 200 ] || [ "$status" -gt 299 ]; then
+              cat "$response_file" >&2
+              echo "GitHub API request failed: ${method} ${url} returned HTTP ${status}" >&2
+              exit 1
+            fi
+            cat "$response_file"
+          }
+
+          repo_status="$(curl --silent --show-error \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${token}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "${api_url}/repos/${owner}/${repo}")"
+
+          if [ "$repo_status" = "404" ]; then
+            repo_payload="$(jq -n --arg name "$repo" '{name: $name, private: false, auto_init: false}')"
+            github_request POST "https://api.github.com/user/repos" \
+              --header "Content-Type: application/json" \
+              --data "$repo_payload" >/dev/null
+          elif [ "$repo_status" != "200" ]; then
+            echo "Failed to look up GitHub repository ${owner}/${repo}: HTTP ${repo_status}" >&2
+            exit 1
+          fi
+
+          if git remote get-url github >/dev/null 2>&1; then
+            git remote set-url github "$remote_url"
+          else
+            git remote add github "$remote_url"
+          fi
+
+          git fetch --prune github
+          git push github --all
+          git push github --tags
+
       - name: Publish Forgejo release
         shell: bash
         env:
@@ -165,7 +233,7 @@ jobs:
           repo="${repository#*/}"
           asset_path="dist/calcount-${tag}.apk"
           release_name="CalCount ${tag}"
-          release_body="Automated APK release for ${tag}."
+          release_body="Automated CalCount APK release for ${tag}."
 
           api_request() {
             local method="$1"
@@ -230,129 +298,6 @@ jobs:
           api_request POST "${api_url}/repos/${owner}/${repo}/releases/${release_id}/assets?name=${asset_name_encoded}" \
             --form "attachment=@${asset_path}" >/dev/null
 
-      - name: Migrate repository to GitHub
-        shell: bash
-        env:
-          GH_KEY: ${{ secrets.GH_KEY }}
-        run: |
-          set -euo pipefail
-
-          api_url="https://api.github.com"
-          repo="${GITHUB_TARGET_REPO:?Missing GitHub target repository}"
-          token="${GH_KEY:?Missing GitHub token}"
-
-          github_api_request() {
-            local method="$1"
-            local url="$2"
-            local response_file
-            local status
-            shift 2
-            response_file="$(mktemp)"
-            status="$(curl --silent --show-error \
-              --output "$response_file" \
-              --write-out "%{http_code}" \
-              --request "$method" \
-              --header "Accept: application/vnd.github+json" \
-              --header "Authorization: Bearer ${token}" \
-              --header "X-GitHub-Api-Version: 2022-11-28" \
-              "$@" \
-              "$url")"
-            if [ "$status" -lt 200 ] || [ "$status" -gt 299 ]; then
-              cat "$response_file" >&2
-              echo "GitHub API request failed: ${method} ${url} returned HTTP ${status}" >&2
-              exit 1
-            fi
-            cat "$response_file"
-          }
-
-          authenticated_login="$(github_api_request GET "${api_url}/user" | jq -r '.login')"
-          owner="${GITHUB_TARGET_OWNER:-$authenticated_login}"
-          if [ "$repo" != "${repo#*/}" ]; then
-            echo "GITHUB_TARGET_REPO must be a repository name, not owner/repo: ${repo}" >&2
-            exit 1
-          fi
-
-          echo "Target GitHub repo: ${owner}/${repo}"
-
-          github_repo_status() {
-            local response_file
-            response_file="$(mktemp)"
-            curl --silent --show-error \
-              --output "$response_file" \
-              --write-out "%{http_code}" \
-              --header "Accept: application/vnd.github+json" \
-              --header "Authorization: Bearer ${token}" \
-              --header "X-GitHub-Api-Version: 2022-11-28" \
-              "${api_url}/repos/${owner}/${repo}"
-          }
-
-          github_git_push() {
-            local remote_url="https://github.com/${owner}/${repo}.git"
-            local auth_header
-            auth_header="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
-            git -c "http.${remote_url}.extraheader=AUTHORIZATION: basic ${auth_header}" \
-              push "$remote_url" "$@"
-          }
-
-          github_migrate() {
-            local repo_status
-            local owner_json
-            local owner_type
-            local create_payload
-            local branch_refspecs=()
-            local ref_name
-            local short_name
-
-            repo_status="$(github_repo_status)"
-            if [ "$repo_status" = "404" ]; then
-              owner_json="$(github_api_request GET "${api_url}/users/${owner}")"
-              owner_type="$(printf '%s' "$owner_json" | jq -r '.type')"
-              create_payload="$(jq -n \
-                --arg name "$repo" \
-                --arg description "CalCount Android app" \
-                '{name: $name, description: $description, private: false, auto_init: false}')"
-
-              if [ "$owner_type" = "Organization" ]; then
-                github_api_request POST "${api_url}/orgs/${owner}/repos" \
-                  --header "Content-Type: application/json" \
-                  --data "$create_payload" >/dev/null
-              elif [ "$owner_type" = "User" ]; then
-                if [ "$authenticated_login" != "$owner" ]; then
-                  echo "Cannot create ${owner}/${repo}: GH_KEY authenticates as ${authenticated_login}, not ${owner}." >&2
-                  exit 1
-                fi
-                github_api_request POST "${api_url}/user/repos" \
-                  --header "Content-Type: application/json" \
-                  --data "$create_payload" >/dev/null
-              else
-                echo "Unsupported GitHub owner type for ${owner}: ${owner_type}" >&2
-                exit 1
-              fi
-            elif [ "$repo_status" != "200" ]; then
-              echo "Failed to check GitHub repository ${owner}/${repo}: HTTP ${repo_status}" >&2
-              exit 1
-            fi
-
-            while read -r ref_name short_name; do
-              short_name="${short_name#origin/}"
-              if [ "$short_name" = "HEAD" ]; then
-                continue
-              fi
-              branch_refspecs+=("${ref_name}:refs/heads/${short_name}")
-            done < <(git for-each-ref --format='%(refname) %(refname:short)' refs/remotes/origin)
-
-            if [ "${#branch_refspecs[@]}" -gt 0 ]; then
-              github_git_push "${branch_refspecs[@]}"
-            else
-              echo "No remote branches were found to migrate." >&2
-              exit 1
-            fi
-
-            github_git_push "refs/tags/*:refs/tags/*"
-          }
-
-          github_migrate
-
       - name: Publish GitHub release
         shell: bash
         env:
@@ -362,14 +307,15 @@ jobs:
 
           api_url="https://api.github.com"
           upload_url="https://uploads.github.com"
-          repo="${GITHUB_TARGET_REPO:?Missing GitHub target repository}"
+          owner="${GITHUB_TARGET_OWNER:?Missing GitHub target owner}"
+          repo="${GITHUB_TARGET_REPO:?Missing GitHub target repo}"
           tag="${FORGEJO_REF_NAME:-${GITHUB_REF_NAME:?Missing tag ref name}}"
           token="${GH_KEY:?Missing GitHub token}"
           asset_path="dist/calcount-${tag}.apk"
           asset_name="$(basename "$asset_path")"
           asset_name_encoded="$(jq -nr --arg value "$asset_name" '$value|@uri')"
           release_name="CalCount ${tag}"
-          release_body="Automated APK release for ${tag}."
+          release_body="Automated CalCount APK release for ${tag}."
 
           github_request() {
             local method="$1"
@@ -394,15 +340,6 @@ jobs:
             fi
             cat "$response_file"
           }
-
-          authenticated_login="$(github_request GET "${api_url}/user" | jq -r '.login')"
-          owner="${GITHUB_TARGET_OWNER:-$authenticated_login}"
-          if [ "$repo" != "${repo#*/}" ]; then
-            echo "GITHUB_TARGET_REPO must be a repository name, not owner/repo: ${repo}" >&2
-            exit 1
-          fi
-
-          echo "Target GitHub repo: ${owner}/${repo}"
 
           release_response="$(mktemp)"
           release_status="$(curl --silent --show-error \
