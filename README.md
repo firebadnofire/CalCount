@@ -1,5 +1,14 @@
 # CalCount
 
+<p>
+  <a href="https://archuser.org/calcount.apk">
+    <img src="readme-assets/badge_obtainium.png" alt="Get it on Obtainium" width="188" height="56" valign="middle">
+  </a>
+  <a href="https://github.com/firebadnofire/calcount/releases">
+    <img src="readme-assets/badge-apk.png" alt="Download APK" width="145" height="56" valign="middle">
+  </a>
+</p>
+
 CalCount is a native Android calorie counter focused on fast manual food entry,
 reliable serving math, and clear daily tracking. The app stores nutrition values
 per serving, then calculates consumed calories and nutrients from either serving
