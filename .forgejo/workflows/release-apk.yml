@@ -216,7 +216,58 @@ jobs:
 
           git fetch --prune github
           git push github --all
-          git push github --tags
+
+          remote_tag_commit() {
+            local tag_name="$1"
+            local remote_refs
+            local peeled_commit
+            local direct_commit
+
+            remote_refs="$(git ls-remote --tags github "refs/tags/${tag_name}" "refs/tags/${tag_name}^{}")"
+            if [ -z "$remote_refs" ]; then
+              return 1
+            fi
+
+            peeled_commit="$(printf '%s\n' "$remote_refs" | awk '$2 ~ /\^\{\}$/ { print $1; exit }')"
+            if [ -n "$peeled_commit" ]; then
+              printf '%s\n' "$peeled_commit"
+              return 0
+            fi
+
+            direct_commit="$(printf '%s\n' "$remote_refs" | awk 'NF { print $1; exit }')"
+            if [ -n "$direct_commit" ]; then
+              printf '%s\n' "$direct_commit"
+              return 0
+            fi
+
+            return 1
+          }
+
+          push_tag_if_needed() {
+            local tag_name="$1"
+            local local_commit
+            local remote_commit
+
+            local_commit="$(git rev-parse "${tag_name}^{commit}")"
+            if remote_commit="$(remote_tag_commit "$tag_name")"; then
+              if [ "$local_commit" = "$remote_commit" ]; then
+                echo "GitHub tag ${tag_name} already points to ${remote_commit}; skipping."
+                return 0
+              fi
+
+              echo "GitHub tag ${tag_name} points to ${remote_commit}, but the local tag points to ${local_commit}." >&2
+              exit 1
+            fi
+
+            git push github "refs/tags/${tag_name}:refs/tags/${tag_name}"
+          }
+
+          while read -r tag_name; do
+            if [ -z "$tag_name" ]; then
+              continue
+            fi
+            push_tag_if_needed "$tag_name"
+          done < <(git tag --list)
 
       - name: Publish Forgejo release
         shell: bash
