@@ -163,9 +163,12 @@ class FoodLibraryFragment : Fragment() {
                 LogFoodDialogFragment.newInstance(food.id)
                     .show(childFragmentManager, "log_food_${food.id}")
             }
-            itemBinding.shareButton.isVisible = BuildConfig.DEBUG
             itemBinding.shareButton.setOnClickListener {
-                promptForCatalogExport(food)
+                if (BuildConfig.DEBUG) {
+                    promptForCatalogExport(food)
+                } else {
+                    exportFoodToDocument(food)
+                }
             }
             itemBinding.editButton.setOnClickListener {
                 viewModel.beginEditingFood(food.id)
@@ -221,6 +224,15 @@ class FoodLibraryFragment : Fragment() {
             dialog.dismiss()
             createDocumentLauncher.launch(pendingExport!!.fileName)
         }
+    }
+
+    private fun exportFoodToDocument(food: Food) {
+        val exportPayload = viewModel.exportFoodJson(food.id) ?: return
+        pendingExport = PendingExport(
+            fileName = buildExportFileName(exportPayload.foodName),
+            json = exportPayload.json
+        )
+        createDocumentLauncher.launch(pendingExport!!.fileName)
     }
 
     private fun writeExportToUri(export: PendingExport, uri: Uri) {

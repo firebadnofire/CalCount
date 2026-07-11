@@ -1,6 +1,5 @@
 # CalCount
 
-
 <p>
   <a href="https://archuser.org/calcount.apk">
     <img src="readme-assets/badge_obtainium.png" alt="Get it on Obtainium" width="188" height="56" valign="middle">
