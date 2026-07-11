@@ -49,6 +49,34 @@ class CalorieRepository(context: Context) {
         }
     }
 
+    fun serializeFoodTransfer(food: Food): String {
+        return JSONObject()
+            .put("app", "CalCount")
+            .put("type", "food")
+            .put("version", FOOD_TRANSFER_VERSION)
+            .put("exportedAtEpochMillis", System.currentTimeMillis())
+            .put("food", serializeFood(food))
+            .toString(2)
+    }
+
+    fun parseFoodTransfer(rawJson: String): Food {
+        val rootObject = JSONObject(rawJson)
+        val foodObject = when {
+            rootObject.optJSONObject("food") != null -> {
+                val type = rootObject.optString("type")
+                require(type == "food") { "This file does not contain a food export." }
+                val version = rootObject.optInt("version", FOOD_TRANSFER_VERSION)
+                require(version == FOOD_TRANSFER_VERSION) {
+                    "This food export version is not supported."
+                }
+                rootObject.getJSONObject("food")
+            }
+
+            else -> rootObject
+        }
+        return parseFood(foodObject)
+    }
+
     private fun parseAppState(jsonObject: JSONObject): AppState {
         val foods = jsonObject.optJSONArray("foods")?.let(::parseFoods).orEmpty()
         val logs = jsonObject.optJSONArray("logs")?.let(::parseLogs).orEmpty()
@@ -369,5 +397,6 @@ class CalorieRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "cal_count"
         private const val KEY_APP_STATE = "app_state"
+        private const val FOOD_TRANSFER_VERSION = 1
     }
 }

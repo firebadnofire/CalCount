@@ -1,11 +1,13 @@
 package org.archuser.CalCount
 
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
@@ -99,6 +101,8 @@ class MainActivity : AppCompatActivity() {
         val bottomNavTopPadding = binding.bottomNavigation.paddingTop
         val bottomNavEndPadding = binding.bottomNavigation.paddingEnd
         val bottomNavBottomPadding = binding.bottomNavigation.paddingBottom
+        val bottomNavBottomMargin =
+            (binding.bottomNavigation.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin ?: 0
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
             val systemBars = windowInsets.getInsets(
@@ -115,8 +119,11 @@ class MainActivity : AppCompatActivity() {
                 left = bottomNavStartPadding + systemBars.left,
                 top = bottomNavTopPadding,
                 right = bottomNavEndPadding + systemBars.right,
-                bottom = bottomNavBottomPadding + systemBars.bottom
+                bottom = bottomNavBottomPadding
             )
+            binding.bottomNavigation.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = bottomNavBottomMargin + systemBars.bottom
+            }
 
             WindowInsetsCompat.Builder(windowInsets)
                 .setInsets(

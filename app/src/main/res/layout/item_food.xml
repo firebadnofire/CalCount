@@ -54,10 +54,18 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/share_button"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/share_food" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/edit_button"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
                 android:text="Edit" />
 
             <com.google.android.material.button.MaterialButton

@@ -1,14 +1,18 @@
 package org.archuser.CalCount.ui.library
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.widget.addTextChangedListener
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.chip.Chip
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import org.archuser.CalCount.MainActivity
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.Food
@@ -27,6 +31,25 @@ class FoodLibraryFragment : Fragment() {
 
     private lateinit var viewModel: AppViewModel
     private var latestState = AppUiState()
+    private var pendingExport: PendingExport? = null
+
+    private val createDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            val export = pendingExport ?: return@registerForActivityResult
+            pendingExport = null
+            if (uri == null) {
+                return@registerForActivityResult
+            }
+            writeExportToUri(export, uri)
+        }
+
+    private val importDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) {
+                return@registerForActivityResult
+            }
+            importFoodFromUri(uri)
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,6 +66,9 @@ class FoodLibraryFragment : Fragment() {
 
         binding.searchEditText.addTextChangedListener {
             render(latestState)
+        }
+        binding.importButton.setOnClickListener {
+            importDocumentLauncher.launch(arrayOf("application/json", "text/*"))
         }
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
@@ -134,9 +160,16 @@ class FoodLibraryFragment : Fragment() {
                 LogFoodDialogFragment.newInstance(food.id)
                     .show(childFragmentManager, "log_food_${food.id}")
             }
+            itemBinding.shareButton.setOnClickListener {
+                exportFoodToDocument(food)
+            }
             itemBinding.editButton.setOnClickListener {
                 viewModel.beginEditingFood(food.id)
                 (activity as? MainActivity)?.navigateToCreateFood()
+            }
+            itemBinding.root.setOnLongClickListener {
+                promptForDelete(food)
+                true
             }
 
             container.addView(itemBinding.root)
@@ -159,8 +192,80 @@ class FoodLibraryFragment : Fragment() {
             servingDescription.lowercase().contains(query)
     }
 
+    private fun exportFoodToDocument(food: Food) {
+        val exportPayload = viewModel.exportFoodJson(food.id) ?: return
+        pendingExport = PendingExport(
+            fileName = buildExportFileName(exportPayload.foodName),
+            json = exportPayload.json
+        )
+        createDocumentLauncher.launch(pendingExport!!.fileName)
+    }
+
+    private fun writeExportToUri(export: PendingExport, uri: Uri) {
+        val contentResolver = requireContext().contentResolver
+        runCatching {
+            contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                writer.write(export.json)
+            } ?: error("The selected file could not be opened for writing.")
+        }.onSuccess {
+            showLibraryMessage(getString(R.string.export_food_saved))
+        }.onFailure { error ->
+            showLibraryMessage(
+                getString(R.string.export_food_save_failed, error.message ?: "unknown error")
+            )
+        }
+    }
+
+    private fun importFoodFromUri(uri: Uri) {
+        val contentResolver = requireContext().contentResolver
+        val rawJson = try {
+            contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
+                reader.readText()
+            } ?: return showLibraryMessage(getString(R.string.import_food_open_failed))
+        } catch (error: Exception) {
+            return showLibraryMessage(
+                getString(R.string.import_food_open_failed_detail, error.message ?: "unknown error")
+            )
+        }
+
+        viewModel.importFoodJson(rawJson)
+    }
+
+    private fun promptForDelete(food: Food) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.delete_food_title, food.name))
+            .setMessage(R.string.delete_food_message)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.delete_food_confirm) { _, _ ->
+                viewModel.deleteFood(food.id)
+            }
+            .show()
+    }
+
+    private fun showLibraryMessage(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
+            .setAnchorView(requireActivity().findViewById(R.id.bottom_navigation))
+            .show()
+    }
+
+    private fun buildExportFileName(foodName: String): String {
+        val sanitizedName = foodName
+            .trim()
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), "-")
+            .trim('-')
+            .ifBlank { "food" }
+        return "$sanitizedName.json"
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        pendingExport = null
         _binding = null
     }
+
+    private data class PendingExport(
+        val fileName: String,
+        val json: String
+    )
 }

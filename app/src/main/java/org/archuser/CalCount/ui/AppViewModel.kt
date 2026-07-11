@@ -64,6 +64,55 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return appState.foods.firstOrNull { it.id == foodId }
     }
 
+    fun exportFoodJson(foodId: String): FoodExportPayload? {
+        val food = getFood(foodId)
+            ?: return failExport("That food is no longer available. Refresh the library and try again.")
+
+        return try {
+            FoodExportPayload(
+                foodName = food.name,
+                json = repository.serializeFoodTransfer(food)
+            )
+        } catch (error: Exception) {
+            failExport("That food could not be exported: ${error.message ?: "unknown error"}")
+        }
+    }
+
+    fun importFoodJson(rawJson: String): Boolean {
+        val importedFood = try {
+            repository.parseFoodTransfer(rawJson)
+        } catch (error: IllegalArgumentException) {
+            return fail(error.message ?: "That file could not be imported.")
+        } catch (error: Exception) {
+            return fail("That file could not be imported: ${error.message ?: "unknown error"}")
+        }
+
+        val resolvedFood = importedFood.copy(
+            id = UUID.randomUUID().toString(),
+            createdAtEpochMillis = System.currentTimeMillis()
+        )
+        val updatedFoods = (appState.foods + resolvedFood).sortedBy { it.name.lowercase() }
+        return persist(
+            appState.copy(foods = updatedFoods),
+            successMessage = "${resolvedFood.name} imported to your food library."
+        )
+    }
+
+    fun deleteFood(foodId: String): Boolean {
+        val food = getFood(foodId)
+            ?: return fail("That food is no longer available. Refresh the library and try again.")
+
+        val updatedFoods = appState.foods.filterNot { it.id == foodId }
+        return persist(
+            appState.copy(foods = updatedFoods),
+            successMessage = "${food.name} deleted from your food library."
+        ) {
+            if (editingFoodId == foodId) {
+                editingFoodId = null
+            }
+        }
+    }
+
     fun saveFood(input: SaveFoodInput): Boolean {
         val name = input.name.trim()
         val servingDescription = input.servingDescription.trim()
@@ -475,6 +524,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return null
     }
 
+    private fun failExport(message: String): FoodExportPayload? {
+        setMessage(message)
+        return null
+    }
+
     private fun setMessage(message: String) {
         _message.value = message
     }
@@ -544,5 +598,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val mainMacro: String,
         val showCaloriesInLivePreview: Boolean,
         val macroSummarySelection: Set<MainMacro>
+    )
+
+    data class FoodExportPayload(
+        val foodName: String,
+        val json: String
     )
 }
