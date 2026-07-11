@@ -6,6 +6,7 @@
     <string name="title_create_food">Create Food</string>
     <string name="title_settings">Settings</string>
     <string name="food_library_subtitle">Search saved foods, reopen recent choices, or log a food in one tap. Hold a food card to delete it.</string>
+    <string name="food_library_catalog_link">A catalog of foods may be found at: &lt;a href="https://archuser.org/calcount-catalog/"&gt;https://archuser.org/calcount-catalog/&lt;/a&gt;</string>
     <string name="ok">OK</string>
     <string name="save_food">Save Food</string>
     <string name="update_food">Update Food</string>

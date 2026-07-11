@@ -2,11 +2,13 @@ package org.archuser.CalCount.ui.library
 
 import android.net.Uri
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.webkit.URLUtil
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.text.HtmlCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -70,6 +72,11 @@ class FoodLibraryFragment : Fragment() {
         binding.searchEditText.addTextChangedListener {
             render(latestState)
         }
+        binding.catalogLinkText.text = HtmlCompat.fromHtml(
+            getString(R.string.food_library_catalog_link),
+            HtmlCompat.FROM_HTML_MODE_LEGACY
+        )
+        binding.catalogLinkText.movementMethod = LinkMovementMethod.getInstance()
         binding.importButton.setOnClickListener {
             importDocumentLauncher.launch(arrayOf("application/json", "text/*"))
         }
