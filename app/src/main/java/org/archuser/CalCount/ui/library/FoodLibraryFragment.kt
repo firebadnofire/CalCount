@@ -2,6 +2,7 @@ package org.archuser.CalCount.ui.library
 
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.URLUtil
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,11 +14,13 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import org.archuser.CalCount.BuildConfig
 import org.archuser.CalCount.MainActivity
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.Food
 import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.Goals
+import org.archuser.CalCount.databinding.DialogCatalogMetadataBinding
 import org.archuser.CalCount.databinding.FragmentFoodLibraryBinding
 import org.archuser.CalCount.databinding.ItemFoodBinding
 import org.archuser.CalCount.ui.AppUiState
@@ -160,8 +163,9 @@ class FoodLibraryFragment : Fragment() {
                 LogFoodDialogFragment.newInstance(food.id)
                     .show(childFragmentManager, "log_food_${food.id}")
             }
+            itemBinding.shareButton.isVisible = BuildConfig.DEBUG
             itemBinding.shareButton.setOnClickListener {
-                exportFoodToDocument(food)
+                promptForCatalogExport(food)
             }
             itemBinding.editButton.setOnClickListener {
                 viewModel.beginEditingFood(food.id)
@@ -192,13 +196,31 @@ class FoodLibraryFragment : Fragment() {
             servingDescription.lowercase().contains(query)
     }
 
-    private fun exportFoodToDocument(food: Food) {
-        val exportPayload = viewModel.exportFoodJson(food.id) ?: return
-        pendingExport = PendingExport(
-            fileName = buildExportFileName(exportPayload.foodName),
-            json = exportPayload.json
-        )
-        createDocumentLauncher.launch(pendingExport!!.fileName)
+    private fun promptForCatalogExport(food: Food) {
+        val dialogBinding = DialogCatalogMetadataBinding.inflate(layoutInflater)
+        dialogBinding.catalogIdInput.setText(buildDefaultCatalogId(food))
+        dialogBinding.catalogRevisionInput.setText("1")
+        dialogBinding.catalogPublisherInput.setText(getString(R.string.catalog_publisher_default))
+        dialogBinding.catalogSourceNameInput.setText(getString(R.string.catalog_source_name_default))
+        dialogBinding.catalogLicenseInput.setText(getString(R.string.catalog_license_default))
+
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.catalog_export_title)
+            .setView(dialogBinding.root)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.ok, null)
+            .show()
+
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val metadata = readCatalogMetadata(dialogBinding) ?: return@setOnClickListener
+            val exportPayload = viewModel.exportCatalogFoodJson(food.id, metadata) ?: return@setOnClickListener
+            pendingExport = PendingExport(
+                fileName = buildCatalogExportFileName(exportPayload.foodName),
+                json = exportPayload.json
+            )
+            dialog.dismiss()
+            createDocumentLauncher.launch(pendingExport!!.fileName)
+        }
     }
 
     private fun writeExportToUri(export: PendingExport, uri: Uri) {
@@ -242,6 +264,72 @@ class FoodLibraryFragment : Fragment() {
             .show()
     }
 
+    private fun readCatalogMetadata(
+        dialogBinding: DialogCatalogMetadataBinding
+    ): AppViewModel.CatalogExportMetadata? {
+        clearCatalogErrors(dialogBinding)
+
+        val catalogId = dialogBinding.catalogIdInput.text?.toString().orEmpty().trim()
+        val revisionRaw = dialogBinding.catalogRevisionInput.text?.toString().orEmpty().trim()
+        val publisher = dialogBinding.catalogPublisherInput.text?.toString().orEmpty().trim()
+        val sourceName = dialogBinding.catalogSourceNameInput.text?.toString().orEmpty().trim()
+        val sourceUrl = dialogBinding.catalogSourceUrlInput.text?.toString().orEmpty().trim().ifBlank { null }
+        val license = dialogBinding.catalogLicenseInput.text?.toString().orEmpty().trim().ifBlank { null }
+        val regionCode = dialogBinding.catalogRegionCodeInput.text?.toString().orEmpty().trim().ifBlank { null }
+        val notes = dialogBinding.catalogNotesInput.text?.toString().orEmpty().trim().ifBlank { null }
+
+        var hasError = false
+
+        if (catalogId.isBlank()) {
+            dialogBinding.catalogIdInputLayout.error = getString(R.string.catalog_error_catalog_id)
+            hasError = true
+        }
+
+        val revision = revisionRaw.toIntOrNull()
+        if (revision == null || revision <= 0) {
+            dialogBinding.catalogRevisionInputLayout.error = getString(R.string.catalog_error_revision)
+            hasError = true
+        }
+
+        if (publisher.isBlank()) {
+            dialogBinding.catalogPublisherInputLayout.error = getString(R.string.catalog_error_publisher)
+            hasError = true
+        }
+
+        if (sourceName.isBlank()) {
+            dialogBinding.catalogSourceNameInputLayout.error = getString(R.string.catalog_error_source_name)
+            hasError = true
+        }
+
+        if (sourceUrl != null && !URLUtil.isValidUrl(sourceUrl)) {
+            dialogBinding.catalogSourceUrlInputLayout.error = getString(R.string.catalog_error_source_url)
+            hasError = true
+        }
+
+        if (hasError) {
+            return null
+        }
+
+        return AppViewModel.CatalogExportMetadata(
+            catalogId = catalogId,
+            revision = revision!!,
+            publisher = publisher,
+            sourceName = sourceName,
+            sourceUrl = sourceUrl,
+            license = license,
+            regionCode = regionCode,
+            notes = notes
+        )
+    }
+
+    private fun clearCatalogErrors(dialogBinding: DialogCatalogMetadataBinding) {
+        dialogBinding.catalogIdInputLayout.error = null
+        dialogBinding.catalogRevisionInputLayout.error = null
+        dialogBinding.catalogPublisherInputLayout.error = null
+        dialogBinding.catalogSourceNameInputLayout.error = null
+        dialogBinding.catalogSourceUrlInputLayout.error = null
+    }
+
     private fun showLibraryMessage(message: String) {
         Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
             .setAnchorView(requireActivity().findViewById(R.id.bottom_navigation))
@@ -256,6 +344,20 @@ class FoodLibraryFragment : Fragment() {
             .trim('-')
             .ifBlank { "food" }
         return "$sanitizedName.json"
+    }
+
+    private fun buildCatalogExportFileName(foodName: String): String {
+        return buildExportFileName(foodName).removeSuffix(".json") + ".catalog.json"
+    }
+
+    private fun buildDefaultCatalogId(food: Food): String {
+        val slug = food.name
+            .trim()
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), ".")
+            .trim('.')
+            .ifBlank { "food" }
+        return "community.$slug"
     }
 
     override fun onDestroyView() {

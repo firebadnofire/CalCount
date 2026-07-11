@@ -59,6 +59,18 @@ class CalorieRepository(context: Context) {
             .toString(2)
     }
 
+    fun serializeCatalogFoodTransfer(food: Food, catalogMetadata: CatalogMetadata): String {
+        val exportedAt = System.currentTimeMillis()
+        return JSONObject()
+            .put("app", "CalCount")
+            .put("type", "food")
+            .put("version", FOOD_TRANSFER_VERSION)
+            .put("exportedAtEpochMillis", exportedAt)
+            .put("catalog", serializeCatalogMetadata(catalogMetadata, exportedAt))
+            .put("food", serializeFoodTransferPayload(food))
+            .toString(2)
+    }
+
     fun parseFoodTransfer(rawJson: String): Food {
         val rootObject = JSONObject(rawJson)
         val foodObject = when {
@@ -306,6 +318,22 @@ class CalorieRepository(context: Context) {
             .put("createdAtEpochMillis", food.createdAtEpochMillis)
     }
 
+    private fun serializeCatalogMetadata(
+        catalogMetadata: CatalogMetadata,
+        exportedAtEpochMillis: Long
+    ): JSONObject {
+        return JSONObject()
+            .put("catalogId", catalogMetadata.catalogId)
+            .put("revision", catalogMetadata.revision)
+            .put("publisher", catalogMetadata.publisher)
+            .put("sourceName", catalogMetadata.sourceName)
+            .putNullableValue("sourceUrl", catalogMetadata.sourceUrl)
+            .put("verifiedAtEpochMillis", exportedAtEpochMillis)
+            .putNullableValue("license", catalogMetadata.license)
+            .putNullableValue("regionCode", catalogMetadata.regionCode)
+            .putNullableValue("notes", catalogMetadata.notes)
+    }
+
     private fun serializeLog(logEntry: LogEntry): JSONObject {
         return JSONObject()
             .put("id", logEntry.id)
@@ -386,6 +414,10 @@ class CalorieRepository(context: Context) {
         return put(key, value ?: JSONObject.NULL)
     }
 
+    private fun JSONObject.putNullableValue(key: String, value: Any?): JSONObject {
+        return put(key, value ?: JSONObject.NULL)
+    }
+
     private fun JSONObject.optNullableDouble(key: String): Double? {
         return if (has(key) && !isNull(key)) getDouble(key) else null
     }
@@ -432,4 +464,15 @@ class CalorieRepository(context: Context) {
         private const val KEY_APP_STATE = "app_state"
         private const val FOOD_TRANSFER_VERSION = 1
     }
+
+    data class CatalogMetadata(
+        val catalogId: String,
+        val revision: Int,
+        val publisher: String,
+        val sourceName: String,
+        val sourceUrl: String?,
+        val license: String?,
+        val regionCode: String?,
+        val notes: String?
+    )
 }

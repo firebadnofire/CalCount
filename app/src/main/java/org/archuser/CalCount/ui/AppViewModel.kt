@@ -78,6 +78,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun exportCatalogFoodJson(foodId: String, metadata: CatalogExportMetadata): FoodExportPayload? {
+        val food = getFood(foodId)
+            ?: return failExport("That food is no longer available. Refresh the library and try again.")
+
+        return try {
+            FoodExportPayload(
+                foodName = food.name,
+                json = repository.serializeCatalogFoodTransfer(
+                    food = food,
+                    catalogMetadata = CalorieRepository.CatalogMetadata(
+                        catalogId = metadata.catalogId,
+                        revision = metadata.revision,
+                        publisher = metadata.publisher,
+                        sourceName = metadata.sourceName,
+                        sourceUrl = metadata.sourceUrl,
+                        license = metadata.license,
+                        regionCode = metadata.regionCode,
+                        notes = metadata.notes
+                    )
+                )
+            )
+        } catch (error: Exception) {
+            failExport("That catalog JSON could not be exported: ${error.message ?: "unknown error"}")
+        }
+    }
+
     fun importFoodJson(rawJson: String): Boolean {
         val importedFood = try {
             repository.parseFoodTransfer(rawJson)
@@ -603,5 +629,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     data class FoodExportPayload(
         val foodName: String,
         val json: String
+    )
+
+    data class CatalogExportMetadata(
+        val catalogId: String,
+        val revision: Int,
+        val publisher: String,
+        val sourceName: String,
+        val sourceUrl: String?,
+        val license: String?,
+        val regionCode: String?,
+        val notes: String?
     )
 }
