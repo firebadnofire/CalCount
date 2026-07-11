@@ -55,7 +55,7 @@ class CalorieRepository(context: Context) {
             .put("type", "food")
             .put("version", FOOD_TRANSFER_VERSION)
             .put("exportedAtEpochMillis", System.currentTimeMillis())
-            .put("food", serializeFood(food))
+            .put("food", serializeFoodTransferPayload(food))
             .toString(2)
     }
 
@@ -108,15 +108,29 @@ class CalorieRepository(context: Context) {
     }
 
     private fun parseFood(jsonObject: JSONObject): Food {
+        val kind = runCatching {
+            FoodKind.valueOf(jsonObject.optString("kind", FoodKind.FOOD.name))
+        }.getOrDefault(FoodKind.FOOD)
+        val servingWeightGrams = jsonObject.optNullableDouble("servingWeightGrams")
+            ?: if (kind == FoodKind.FOOD) {
+                jsonObject.getDouble("servingWeightGrams")
+            } else {
+                0.0
+            }
+        val servingVolumeMilliliters = jsonObject.optNullableDouble("servingVolumeMilliliters")
+            ?: if (kind == FoodKind.LIQUID) {
+                jsonObject.getDouble("servingVolumeMilliliters")
+            } else {
+                0.0
+            }
+
         return Food(
             id = jsonObject.getString("id"),
             name = jsonObject.getString("name"),
             servingDescription = jsonObject.getString("servingDescription"),
-            kind = runCatching {
-                FoodKind.valueOf(jsonObject.optString("kind", FoodKind.FOOD.name))
-            }.getOrDefault(FoodKind.FOOD),
-            servingWeightGrams = jsonObject.getDouble("servingWeightGrams"),
-            servingVolumeMilliliters = jsonObject.optDouble("servingVolumeMilliliters", 0.0),
+            kind = kind,
+            servingWeightGrams = servingWeightGrams,
+            servingVolumeMilliliters = servingVolumeMilliliters,
             nutritionPerServing = parseNutrition(jsonObject.getJSONObject("nutritionPerServing")),
             servingsPerContainer = jsonObject.optNullableDouble("servingsPerContainer"),
             createdAtEpochMillis = jsonObject.optLong("createdAtEpochMillis")
@@ -268,6 +282,25 @@ class CalorieRepository(context: Context) {
             .put("kind", food.kind.name)
             .put("servingWeightGrams", food.servingWeightGrams)
             .put("servingVolumeMilliliters", food.servingVolumeMilliliters)
+            .put("nutritionPerServing", serializeNutrition(food.nutritionPerServing))
+            .putNullable("servingsPerContainer", food.servingsPerContainer)
+            .put("createdAtEpochMillis", food.createdAtEpochMillis)
+    }
+
+    private fun serializeFoodTransferPayload(food: Food): JSONObject {
+        return JSONObject()
+            .put("id", food.id)
+            .put("name", food.name)
+            .put("servingDescription", food.servingDescription)
+            .put("kind", food.kind.name)
+            .putNullable(
+                "servingWeightGrams",
+                food.servingWeightGrams.takeUnless { food.kind == FoodKind.LIQUID }
+            )
+            .putNullable(
+                "servingVolumeMilliliters",
+                food.servingVolumeMilliliters.takeUnless { food.kind == FoodKind.FOOD }
+            )
             .put("nutritionPerServing", serializeNutrition(food.nutritionPerServing))
             .putNullable("servingsPerContainer", food.servingsPerContainer)
             .put("createdAtEpochMillis", food.createdAtEpochMillis)
