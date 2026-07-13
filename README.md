@@ -24,6 +24,8 @@ persistence.
 - Store all nutrition values per serving.
 - Log foods by serving count or by weight.
 - Log liquids by serving count or by volume.
+- Import and export saved foods by either JSON file or QR code using the exact
+  same transfer payload.
 - Preview calculated calories and macros before saving a log entry.
 - Track daily calories consumed and remaining.
 - View macro summaries and meal sections for the current day.
@@ -241,6 +243,7 @@ secrets and kept least-privilege.
 
 - CalCount is a local-first app.
 - The Android manifest declares no network permission.
+- Camera permission is only requested when the user chooses QR import.
 - Food entries, logs, and goals are stored locally in app preferences.
 - The app does not currently sync data to a server.
 - Do not hardcode secrets or credentials in source files or Gradle scripts.
@@ -267,7 +270,7 @@ device-transfer behavior needs to change.
 ## Current Limitations
 
 - Data is stored locally only.
-- There is no barcode scanner or remote food database.
+- There is no packaged-food barcode lookup or remote food database.
 - There is no recipe or meal planning model.
 - Release signing is not configured directly in the module build file.
 - Persistence uses a single JSON value in `SharedPreferences`, not a database.

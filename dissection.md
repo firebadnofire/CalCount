@@ -505,6 +505,24 @@ Design choice:
 
 That fits the app's low-friction logging goal.
 
+## Food Import And Export
+
+File:
+
+- `ui/library/FoodLibraryFragment.kt`
+
+Purpose:
+
+- reuse one JSON transfer payload for file export, file import, QR export, and QR import
+- keep transfer behavior local and non-proprietary
+
+Important behavior:
+
+- import and share now prompt `QR or file?`
+- QR export renders the exact same JSON payload that file export writes
+- QR import decodes a QR payload and feeds the raw JSON into the existing import path
+- camera permission is requested only when the user explicitly chooses QR import
+
 ## Create Food
 
 Files:

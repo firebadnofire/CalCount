@@ -9,8 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.text.HtmlCompat
-import androidx.core.widget.addTextChangedListener
 import androidx.core.view.isVisible
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.chip.Chip
@@ -78,7 +78,7 @@ class FoodLibraryFragment : Fragment() {
         )
         binding.catalogLinkText.movementMethod = LinkMovementMethod.getInstance()
         binding.importButton.setOnClickListener {
-            importDocumentLauncher.launch(arrayOf("application/json", "text/*"))
+            promptForImportMethod()
         }
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
@@ -171,10 +171,14 @@ class FoodLibraryFragment : Fragment() {
                     .show(childFragmentManager, "log_food_${food.id}")
             }
             itemBinding.shareButton.setOnClickListener {
+                promptForExportMethod(food)
+            }
+            itemBinding.shareButton.setOnLongClickListener {
                 if (BuildConfig.DEBUG) {
                     promptForCatalogExport(food)
+                    true
                 } else {
-                    exportFoodToDocument(food)
+                    false
                 }
             }
             itemBinding.editButton.setOnClickListener {
@@ -233,6 +237,35 @@ class FoodLibraryFragment : Fragment() {
         }
     }
 
+    private fun promptForExportMethod(food: Food) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.transfer_method_title)
+            .setMessage(R.string.transfer_method_message)
+            .setNegativeButton(R.string.cancel, null)
+            .setNeutralButton(R.string.transfer_method_file) { _, _ ->
+                exportFoodToDocument(food)
+            }
+            .setPositiveButton(R.string.transfer_method_qr) { _, _ ->
+                exportFoodToQr(food)
+            }
+            .show()
+    }
+
+    private fun promptForImportMethod() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.transfer_method_title)
+            .setMessage(R.string.transfer_method_message)
+            .setNegativeButton(R.string.cancel, null)
+            .setNeutralButton(R.string.transfer_method_file) { _, _ ->
+                importDocumentLauncher.launch(arrayOf("application/json", "text/*"))
+            }
+            .setPositiveButton(R.string.transfer_method_qr) { _, _ ->
+                QrImportDialogFragment.newInstance()
+                    .show(childFragmentManager, "qr_import")
+            }
+            .show()
+    }
+
     private fun exportFoodToDocument(food: Food) {
         val exportPayload = viewModel.exportFoodJson(food.id) ?: return
         pendingExport = PendingExport(
@@ -240,6 +273,18 @@ class FoodLibraryFragment : Fragment() {
             json = exportPayload.json
         )
         createDocumentLauncher.launch(pendingExport!!.fileName)
+    }
+
+    private fun exportFoodToQr(food: Food) {
+        val exportPayload = viewModel.exportFoodJson(food.id) ?: return
+        runCatching {
+            QrTransferCodec.encodeToMatrix(exportPayload.json)
+        }.onSuccess {
+            QrExportDialogFragment.newInstance(exportPayload.json)
+                .show(childFragmentManager, "qr_export_${food.id}")
+        }.onFailure {
+            showLibraryMessage(getString(R.string.qr_export_too_large))
+        }
     }
 
     private fun writeExportToUri(export: PendingExport, uri: Uri) {

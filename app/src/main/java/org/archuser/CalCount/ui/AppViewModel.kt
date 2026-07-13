@@ -46,6 +46,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _message.value = null
     }
 
+    fun setTransientMessage(message: String) {
+        _message.value = message
+    }
+
     fun consumeSettingsSavedEvent() {
         _settingsSavedEvent.value = null
     }
