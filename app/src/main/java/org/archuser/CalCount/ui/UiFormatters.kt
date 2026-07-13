@@ -132,6 +132,7 @@ object UiFormatters {
                 amountLabel
 
             InputMode.WEIGHT -> "$amountLabel • ${servings(logEntry.consumedServings)}"
+            InputMode.VOLUME -> "$amountLabel • ${servings(logEntry.consumedServings)}"
         }
     }
 

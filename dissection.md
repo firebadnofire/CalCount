@@ -495,7 +495,7 @@ Why it matters:
 Important behavior:
 
 - user chooses one mode at a time
-- the dialog adapts between food and liquid behavior
+- foods log by servings or weight, while liquids log by servings or volume
 - live preview is calculated on text change
 - invalid amounts are surfaced immediately
 

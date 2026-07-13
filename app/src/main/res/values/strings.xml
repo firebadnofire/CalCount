@@ -15,6 +15,7 @@
     <string name="log_food_title">Log %1$s</string>
     <string name="amount_in_servings">Amount in servings</string>
     <string name="amount_in_weight">Amount in %1$s</string>
+    <string name="amount_in_volume">Amount in %1$s</string>
     <string name="preview_waiting_amount">Enter an amount to preview the serving math.</string>
     <string name="preview_waiting_calories">Main macro will update here.</string>
     <string name="preview_waiting_macros">Macros will update here.</string>

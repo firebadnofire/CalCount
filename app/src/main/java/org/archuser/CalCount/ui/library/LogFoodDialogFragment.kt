@@ -3,6 +3,7 @@ package org.archuser.CalCount.ui.library
 import android.app.Dialog
 import android.os.Bundle
 import android.view.View
+import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModelProvider
@@ -82,6 +83,8 @@ class LogFoodDialogFragment : DialogFragment() {
         binding.mealTypeDropdown.setText(MealType.SNACK.displayName, false)
 
         binding.inputModeGroup.check(R.id.log_by_servings_button)
+        binding.logByWeightButton.isVisible = food.kind == FoodKind.FOOD
+        binding.logByVolumeButton.isVisible = food.kind == FoodKind.LIQUID
         updateAmountHint()
         updatePreview(food)
 
@@ -89,10 +92,10 @@ class LogFoodDialogFragment : DialogFragment() {
             if (!isChecked) {
                 return@addOnButtonCheckedListener
             }
-            currentInputMode = if (checkedId == R.id.log_by_weight_button) {
-                InputMode.WEIGHT
-            } else {
-                InputMode.SERVINGS
+            currentInputMode = when (checkedId) {
+                R.id.log_by_weight_button -> InputMode.WEIGHT
+                R.id.log_by_volume_button -> InputMode.VOLUME
+                else -> InputMode.SERVINGS
             }
             updateAmountHint()
             updatePreview(food)
@@ -110,10 +113,10 @@ class LogFoodDialogFragment : DialogFragment() {
         } else {
             goals.preferredUnit.shortLabel
         }
-        binding.amountLayout.hint = if (currentInputMode == InputMode.SERVINGS) {
-            getString(R.string.amount_in_servings)
-        } else {
-            getString(R.string.amount_in_weight, unitLabel)
+        binding.amountLayout.hint = when (currentInputMode) {
+            InputMode.SERVINGS -> getString(R.string.amount_in_servings)
+            InputMode.WEIGHT -> getString(R.string.amount_in_weight, unitLabel)
+            InputMode.VOLUME -> getString(R.string.amount_in_volume, unitLabel)
         }
     }
 
@@ -145,17 +148,17 @@ class LogFoodDialogFragment : DialogFragment() {
         val calculation = try {
             when (currentInputMode) {
                 InputMode.SERVINGS -> NutritionCalculator.calculateForServings(food, amount)
-                InputMode.WEIGHT -> if (food.kind == FoodKind.LIQUID) {
-                    NutritionCalculator.calculateForVolume(
-                        food,
-                        NutritionCalculator.convertToMilliliters(amount, preferredLiquidUnit)
-                    )
-                } else {
+                InputMode.WEIGHT -> {
                     NutritionCalculator.calculateForWeight(
                         food,
                         NutritionCalculator.convertToGrams(amount, preferredUnit)
                     )
                 }
+
+                InputMode.VOLUME -> NutritionCalculator.calculateForVolume(
+                    food,
+                    NutritionCalculator.convertToMilliliters(amount, preferredLiquidUnit)
+                )
             }
         } catch (_: IllegalArgumentException) {
             binding.previewAmount.text = getString(R.string.preview_invalid_amount)

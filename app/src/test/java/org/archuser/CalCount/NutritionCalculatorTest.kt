@@ -1,7 +1,9 @@
 package org.archuser.CalCount
 
 import org.archuser.CalCount.data.model.Food
+import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.NutritionSnapshot
+import org.archuser.CalCount.data.model.VolumeUnit
 import org.archuser.CalCount.data.model.WeightUnit
 import org.archuser.CalCount.domain.NutritionCalculator
 import org.junit.Assert.assertEquals
@@ -20,6 +22,22 @@ class NutritionCalculatorTest {
             carbsGrams = 24.0,
             proteinGrams = 20.0,
             potassiumMilligrams = 180.0
+        )
+    )
+
+    private val testLiquid = Food(
+        id = "food-2",
+        name = "Coke",
+        servingDescription = "1 can",
+        kind = FoodKind.LIQUID,
+        servingWeightGrams = 0.0,
+        servingVolumeMilliliters = 355.0,
+        nutritionPerServing = NutritionSnapshot(
+            calories = 140.0,
+            fatGrams = 0.0,
+            carbsGrams = 39.0,
+            proteinGrams = 0.0,
+            sodiumMilligrams = 45.0
         )
     )
 
@@ -54,5 +72,23 @@ class NutritionCalculatorTest {
         val grams = NutritionCalculator.convertToGrams(1.0, WeightUnit.OUNCES)
 
         assertEquals(28.349523125, grams, 0.000000001)
+    }
+
+    @Test
+    fun calculateForVolume_convertsBottleVolumeIntoServingFraction() {
+        val result = NutritionCalculator.calculateForVolume(testLiquid, volumeMilliliters = 710.0)
+
+        assertEquals(2.0, result.servings, 0.0001)
+        assertEquals(710.0, result.volumeMilliliters, 0.0001)
+        assertEquals(280.0, result.nutrition.calories, 0.0001)
+        assertEquals(78.0, result.nutrition.carbsGrams, 0.0001)
+        assertEquals(90.0, result.nutrition.sodiumMilligrams ?: 0.0, 0.0001)
+    }
+
+    @Test
+    fun convertToMilliliters_supportsFluidOuncesInternally() {
+        val milliliters = NutritionCalculator.convertToMilliliters(12.0, VolumeUnit.FLUID_OUNCES)
+
+        assertEquals(354.88235475, milliliters, 0.000000001)
     }
 }

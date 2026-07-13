@@ -15,7 +15,8 @@ enum class MealType(val displayName: String) {
 
 enum class InputMode(val displayName: String) {
     SERVINGS("Servings"),
-    WEIGHT("Weight")
+    WEIGHT("Weight"),
+    VOLUME("Volume")
 }
 
 enum class WeightUnit(
@@ -39,7 +40,8 @@ enum class VolumeUnit(
     val millilitersPerUnit: Double
 ) {
     MILLILITERS(displayName = "Milliliters", shortLabel = "ml", millilitersPerUnit = 1.0),
-    LITERS(displayName = "Liters", shortLabel = "L", millilitersPerUnit = 1000.0);
+    LITERS(displayName = "Liters", shortLabel = "L", millilitersPerUnit = 1000.0),
+    FLUID_OUNCES(displayName = "Fluid ounces", shortLabel = "fl oz", millilitersPerUnit = 29.5735295625);
 
     companion object {
         fun fromDisplayName(value: String): VolumeUnit? {

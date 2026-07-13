@@ -316,24 +316,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 InputMode.WEIGHT -> {
-                    if (food.kind == FoodKind.LIQUID) {
-                        val amount = parseRequiredPositiveDouble(
-                            input.amount,
-                            "Volume in ${appState.goals.preferredLiquidUnit.shortLabel}"
-                        ) ?: return false
-                        val volumeMilliliters = NutritionCalculator.convertToMilliliters(
-                            amount,
-                            appState.goals.preferredLiquidUnit
-                        )
-                        NutritionCalculator.calculateForVolume(food, volumeMilliliters)
-                    } else {
-                        val amount = parseRequiredPositiveDouble(
-                            input.amount,
-                            "Weight in ${appState.goals.preferredUnit.shortLabel}"
-                        ) ?: return false
-                        val weightGrams = NutritionCalculator.convertToGrams(amount, appState.goals.preferredUnit)
-                        NutritionCalculator.calculateForWeight(food, weightGrams)
-                    }
+                    val amount = parseRequiredPositiveDouble(
+                        input.amount,
+                        "Weight in ${appState.goals.preferredUnit.shortLabel}"
+                    ) ?: return false
+                    val weightGrams = NutritionCalculator.convertToGrams(amount, appState.goals.preferredUnit)
+                    NutritionCalculator.calculateForWeight(food, weightGrams)
+                }
+
+                InputMode.VOLUME -> {
+                    val amount = parseRequiredPositiveDouble(
+                        input.amount,
+                        "Volume in ${appState.goals.preferredLiquidUnit.shortLabel}"
+                    ) ?: return false
+                    val volumeMilliliters = NutritionCalculator.convertToMilliliters(
+                        amount,
+                        appState.goals.preferredLiquidUnit
+                    )
+                    NutritionCalculator.calculateForVolume(food, volumeMilliliters)
                 }
             }
         } catch (error: IllegalArgumentException) {

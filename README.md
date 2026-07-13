@@ -31,6 +31,7 @@ persistence.
 - Review past days in the history screen.
 - Configure daily calorie goals, macro targets, display preferences, preferred
   weight unit, preferred liquid unit, and Material You behavior.
+- Supports liquid logging in milliliters, liters, or fluid ounces.
 - Supports required nutrients plus optional useful and extended nutrients such
   as fiber, sugars, sodium, potassium, cholesterol, vitamins, and minerals.
 

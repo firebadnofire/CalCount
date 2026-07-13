@@ -67,6 +67,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Weight" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/log_by_volume_button"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Volume"
+                android:visibility="gone" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
         <com.google.android.material.textfield.TextInputLayout
