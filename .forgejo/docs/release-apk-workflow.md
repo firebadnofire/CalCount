@@ -333,7 +333,10 @@ with:
 
 Android SDK setup is currently delegated to
 `https://github.com/android-actions/setup-android@v3`. The exact Android compile
-SDK is controlled by `compileSdk` in `app/build.gradle.kts`.
+SDK is controlled by `compileSdk` in `app/build.gradle.kts`. Keep the action’s
+explicit package list in sync with that version and the Android Gradle Plugin’s
+Build Tools requirement. The list installs Platform Tools, API 36, and Build
+Tools 35.0.0 and avoids the action’s obsolete `tools` default.
 
 ## Troubleshooting
 
