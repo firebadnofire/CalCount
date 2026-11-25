@@ -17,29 +17,19 @@ jobs:
       options: --network ci-network
 
     steps:
-      - name: Prepare APT and action runtime
+      - name: Install build and action runtime tools
         shell: bash
         run: |
           set -euo pipefail
 
-          apt_get="apt-get"
-          tee_cmd="tee"
-          install_cmd="install"
-          chmod_cmd="chmod"
-          if command -v sudo >/dev/null 2>&1; then
-            apt_get="sudo apt-get"
-            tee_cmd="sudo tee"
-            install_cmd="sudo install"
-            chmod_cmd="sudo chmod"
+          apt_get=(apt-get -o Acquire::http::Proxy=DIRECT -o Acquire::https::Proxy=DIRECT)
+          as_root=()
+          if [ "$(id -u)" -ne 0 ]; then
+            as_root=(sudo)
           fi
 
-          {
-            echo 'Acquire::http::Proxy "http://apt-cacher-ng:3142";'
-            echo 'Acquire::https::Proxy "http://apt-cacher-ng:3142";'
-          } | $tee_cmd /etc/apt/apt.conf.d/01proxy >/dev/null
-
-          $apt_get update
-          $apt_get install -y --no-install-recommends ca-certificates curl git gnupg jq unzip
+          "${as_root[@]}" "${apt_get[@]}" update -o APT::Update::Error-Mode=any
+          "${as_root[@]}" "${apt_get[@]}" install -y --no-install-recommends ca-certificates curl git gnupg jq unzip
 
           needs_node=1
           if command -v node >/dev/null 2>&1; then
@@ -50,15 +40,15 @@ jobs:
           fi
 
           if [ "$needs_node" -eq 1 ]; then
-            $install_cmd -d -m 0755 /etc/apt/keyrings
+            "${as_root[@]}" install -d -m 0755 /etc/apt/keyrings
             curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
               | gpg --dearmor \
-              | $tee_cmd /etc/apt/keyrings/nodesource.gpg >/dev/null
-            $chmod_cmd a+r /etc/apt/keyrings/nodesource.gpg
+              | "${as_root[@]}" tee /etc/apt/keyrings/nodesource.gpg >/dev/null
+            "${as_root[@]}" chmod a+r /etc/apt/keyrings/nodesource.gpg
             echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main' \
-              | $tee_cmd /etc/apt/sources.list.d/nodesource.list >/dev/null
-            $apt_get update
-            $apt_get install -y --no-install-recommends nodejs
+              | "${as_root[@]}" tee /etc/apt/sources.list.d/nodesource.list >/dev/null
+            "${as_root[@]}" "${apt_get[@]}" update -o APT::Update::Error-Mode=any
+            "${as_root[@]}" "${apt_get[@]}" install -y --no-install-recommends nodejs
           fi
 
       - name: Check out repository

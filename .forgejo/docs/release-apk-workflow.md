@@ -55,17 +55,11 @@ the host Docker daemon and attaches it to the runner-provided `ci-network`.
 Do not add Docker service containers, Docker socket mounts, or DinD setup unless
 the runner configuration changes.
 
-## APT Proxy and Bootstrap
+## Package Bootstrap
 
-The first step configures APT to use the runner-local cache:
-
-```apt
-Acquire::http::Proxy "http://apt-cacher-ng:3142";
-Acquire::https::Proxy "http://apt-cacher-ng:3142";
-```
-
-This depends on the job container being on `ci-network`, where
-`apt-cacher-ng:3142` is reachable.
+The bootstrap fetches package indexes and packages directly from Ubuntu and
+NodeSource. Every APT command explicitly uses direct connections over HTTP
+and HTTPS. Index refreshes fail the job if a repository cannot be reached.
 
 The bootstrap step installs:
 
@@ -82,8 +76,7 @@ have Node 20 or newer. This is necessary because `actions/checkout@v4`,
 inside the job container.
 
 If the runner image changes to an image that already includes these tools and
-Node 20, the bootstrap step can be simplified, but keep the APT proxy setup before
-any `apt-get update`.
+Node 20, the bootstrap step can be simplified.
 
 ## External Actions
 
@@ -358,11 +351,9 @@ uses: https://github.com/actions/checkout@v4
 
 ### APT cannot connect to package repositories
 
-Verify:
-
-- the job is on `ci-network`;
-- `apt-cacher-ng:3142` is reachable from that network;
-- the APT proxy file is written before `apt-get update`.
+Check DNS and outbound access to the Ubuntu repositories from the job
+container. If the Node.js installation fails, also check HTTPS access to
+`deb.nodesource.com`.
 
 ### GitHub upload fails with duplicate asset
 
