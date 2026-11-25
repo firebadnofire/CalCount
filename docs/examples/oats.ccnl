@@ -1,0 +1,18 @@
+{
+  "format": "ccnl",
+  "schema_version": 1,
+  "food": {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "name": "Oats",
+    "servingDescription": "1 serving",
+    "kind": "FOOD",
+    "servingWeightGrams": 40,
+    "nutritionPerServing": {
+      "calories": 150,
+      "fatGrams": 3,
+      "carbsGrams": 27,
+      "proteinGrams": 5,
+      "sodiumMilligrams": 0
+    }
+  }
+}

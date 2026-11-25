@@ -15,8 +15,13 @@ per serving, then calculates consumed calories and nutrients from either serving
 counts or measured amounts.
 
 The current app is built with Kotlin, Android Views, Material Components,
-Jetpack Navigation, ViewModel, LiveData, and local SharedPreferences-backed JSON
-persistence.
+Jetpack Navigation, ViewModel, LiveData, and app-private JSON persistence.
+
+**[CalCount File Formats (CCNL & CCR)](cc-file-formats.md)**
+
+> **TL;DR:** CCNL is the nutritional label, CCR is a collection of CCNLs.
+> CCNL files store one food label as JSON. CCR files package ingredient labels
+> with recipe quantities, units, and serving yield.
 
 ## Features
 
@@ -24,8 +29,9 @@ persistence.
 - Store all nutrition values per serving.
 - Log foods by serving count or by weight.
 - Log liquids by serving count or by volume.
-- Import and export saved foods by either JSON file or QR code using the exact
-  same transfer payload.
+- Create, edit, and log recipes linked to foods in your library.
+- Import and export nutritional labels and recipes by file or offline QR carousel.
+- Compare conflicting imports before applying changes to the library.
 - Preview calculated calories and macros before saving a log entry.
 - Track daily calories consumed and remaining.
 - View macro summaries and meal sections for the current day.
@@ -48,7 +54,7 @@ CalCount is intentionally a clean manual tracker. Version 1 is centered on:
 - Simple Material 3-style Android UI.
 
 The app does not currently include barcode scanning, an online food database,
-photo recognition, recipes, meal planning, social features, or cloud sync.
+photo recognition, meal planning, social features, or cloud sync.
 
 ## Core Nutrition Rules
 
@@ -93,7 +99,7 @@ nutrition math invalid.
 - **Today**: daily calories, remaining calories, macro summary, and meal
   sections.
 - **History**: previous days and day detail views.
-- **Food Library**: saved foods, recent foods, and logging entry points.
+- **Food Library**: use **Swap** to switch between **Cans** (saved foods and recent foods) and **Recipes**. Import is available in either panel.
 - **Create Food**: form for creating and editing nutrition-label-style entries.
 - **Log Food**: dialog for choosing meal type, input mode, and amount with live
   preview.
@@ -106,15 +112,16 @@ The main local models are:
 
 - `Food`: reusable nutrition entry with serving description, food kind, serving
   weight or volume, nutrition per serving, and optional servings per container.
-- `LogEntry`: one consumed item with meal type, input mode, consumed amount, and
-  calculated nutrition snapshot.
+- `Recipe`: ordered ingredient amounts linked to foods by UUID, with serving yield.
+- `LogEntry`: consumed food or recipe with source identity, meal, amount, and a
+  calculated nutrition snapshot. Recipe logs include nutrient completeness.
 - `NutritionSnapshot`: calories, main macros, and optional nutrients.
 - `Goals`: daily calorie target, macro targets, unit preferences, and display
   preferences.
-- `AppState`: persisted foods, logs, and goals.
+- `AppState`: persisted foods, recipes, logs, and goals.
 
-Persistence is local to the device through Android `SharedPreferences`. App data
-is serialized as JSON and loaded at startup.
+CalCount stores app data as private JSON with a previous valid copy for recovery.
+Existing SharedPreferences data loads through the legacy migration path.
 
 ## Tech Stack
 
@@ -244,7 +251,7 @@ secrets and kept least-privilege.
 - CalCount is a local-first app.
 - The Android manifest declares no network permission.
 - Camera permission is only requested when the user chooses QR import.
-- Food entries, logs, and goals are stored locally in app preferences.
+- Food entries, recipes, logs, and goals are stored in app-private files.
 - The app does not currently sync data to a server.
 - Do not hardcode secrets or credentials in source files or Gradle scripts.
 - Keep release signing material outside the repository.
@@ -271,9 +278,9 @@ device-transfer behavior needs to change.
 
 - Data is stored locally only.
 - There is no packaged-food barcode lookup or remote food database.
-- There is no recipe or meal planning model.
+- Recipes support ingredient foods and serving-based logging. Meal planning is unavailable.
 - Release signing is not configured directly in the module build file.
-- Persistence uses a single JSON value in `SharedPreferences`, not a database.
+- QR transfers are limited to 128 frames. Use file sharing for larger recipes.
 
 ## License
 

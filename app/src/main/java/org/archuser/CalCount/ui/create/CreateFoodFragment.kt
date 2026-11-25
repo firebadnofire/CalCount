@@ -67,6 +67,7 @@ class CreateFoodFragment : Fragment() {
                     name = binding.foodNameEditText.text?.toString().orEmpty(),
                     servingDescription = binding.servingDescriptionEditText.text?.toString().orEmpty(),
                     servingAmount = binding.servingWeightEditText.text?.toString().orEmpty(),
+                    liquidServingWeight = binding.liquidServingWeightEditText.text?.toString().orEmpty(),
                     calories = binding.caloriesEditText.text?.toString().orEmpty(),
                     fatGrams = binding.fatEditText.text?.toString().orEmpty(),
                     carbsGrams = binding.carbsEditText.text?.toString().orEmpty(),
@@ -158,6 +159,9 @@ class CreateFoodFragment : Fragment() {
                 if (food.kind == FoodKind.LIQUID) food.servingVolumeMilliliters else food.servingWeightGrams
             )
         )
+        binding.liquidServingWeightEditText.setText(
+            food.servingWeightGrams.takeIf { food.kind == FoodKind.LIQUID && it > 0 }?.let(UiFormatters::number).orEmpty()
+        )
         binding.caloriesEditText.setText(UiFormatters.number(food.nutritionPerServing.calories))
         binding.fatEditText.setText(UiFormatters.number(food.nutritionPerServing.fatGrams))
         binding.carbsEditText.setText(UiFormatters.number(food.nutritionPerServing.carbsGrams))
@@ -203,6 +207,7 @@ class CreateFoodFragment : Fragment() {
         binding.foodNameEditText.text = null
         binding.servingDescriptionEditText.text = null
         binding.servingWeightEditText.text = null
+        binding.liquidServingWeightEditText.text = null
         binding.caloriesEditText.text = null
         binding.fatEditText.text = null
         binding.carbsEditText.text = null
@@ -237,6 +242,7 @@ class CreateFoodFragment : Fragment() {
     }
 
     private fun applyKindToUi() {
+        binding.liquidServingWeightLayout.isVisible = currentFoodKind == FoodKind.LIQUID
         binding.servingAmountLayout.hint = if (currentFoodKind == FoodKind.LIQUID) {
             "Serving volume (ml)"
         } else {

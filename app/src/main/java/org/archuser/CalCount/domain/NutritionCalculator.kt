@@ -88,7 +88,7 @@ object NutritionCalculator {
         return volumeMilliliters / unit.millilitersPerUnit
     }
 
-    private fun scaleNutrition(nutrition: NutritionSnapshot, factor: Double): NutritionSnapshot {
+    fun scaleNutrition(nutrition: NutritionSnapshot, factor: Double): NutritionSnapshot {
         return NutritionSnapshot(
             calories = nutrition.calories * factor,
             fatGrams = nutrition.fatGrams * factor,

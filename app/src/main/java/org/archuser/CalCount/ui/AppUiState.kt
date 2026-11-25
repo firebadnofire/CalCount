@@ -3,8 +3,10 @@ package org.archuser.CalCount.ui
 import org.archuser.CalCount.data.model.Food
 import org.archuser.CalCount.data.model.Goals
 import org.archuser.CalCount.data.model.LogEntry
+import org.archuser.CalCount.data.model.LogSourceType
 import org.archuser.CalCount.data.model.MealType
 import org.archuser.CalCount.data.model.NutritionSnapshot
+import org.archuser.CalCount.data.model.Recipe
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -13,7 +15,8 @@ data class AppUiState(
     val foods: List<Food> = emptyList(),
     val logs: List<LogEntry> = emptyList(),
     val goals: Goals = Goals(),
-    val editingFood: Food? = null
+    val editingFood: Food? = null,
+    val recipes: List<Recipe> = emptyList()
 ) {
     fun todayLogs(zoneId: ZoneId = ZoneId.systemDefault()): List<LogEntry> {
         return logsForDate(LocalDate.now(zoneId), zoneId)
@@ -52,6 +55,7 @@ data class AppUiState(
     fun recentFoods(limit: Int = 5): List<Food> {
         val foodsById = foods.associateBy(Food::id)
         val recentIds = logs
+            .filter { it.sourceType == LogSourceType.FOOD }
             .sortedByDescending(LogEntry::loggedAtEpochMillis)
             .map(LogEntry::foodId)
             .distinct()

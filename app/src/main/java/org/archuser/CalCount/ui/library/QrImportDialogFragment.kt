@@ -2,6 +2,10 @@ package org.archuser.CalCount.ui.library
 
 import android.Manifest
 import android.app.Dialog
+import android.content.DialogInterface
+import org.archuser.CalCount.MainActivity
+import org.archuser.CalCount.data.Carousel
+import org.archuser.CalCount.data.IncomingTransfer
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +14,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -32,7 +37,9 @@ class QrImportDialogFragment : DialogFragment() {
     private lateinit var cameraExecutor: ExecutorService
     private var cameraProvider: ProcessCameraProvider? = null
     private var barcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner? = null
-    private var hasHandledResult = false
+    private val receiver get() = viewModel.qrReceiver
+    private var scanGeneration = 0
+    @Volatile private var hasHandledResult = false
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -48,16 +55,23 @@ class QrImportDialogFragment : DialogFragment() {
         _binding = DialogQrImportBinding.inflate(layoutInflater)
         viewModel = ViewModelProvider(requireActivity())[AppViewModel::class.java]
         cameraExecutor = Executors.newSingleThreadExecutor()
+        showProgress()
 
         return MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.qr_import_title)
             .setView(binding.root)
             .setNegativeButton(R.string.qr_import_cancel, null)
+            .setNeutralButton("Reset", null)
             .create()
     }
 
     override fun onStart() {
         super.onStart()
+        (dialog as? androidx.appcompat.app.AlertDialog)?.getButton(DialogInterface.BUTTON_NEUTRAL)?.setOnClickListener {
+            receiver.reset()
+            binding.qrImportMessage.setText(R.string.qr_import_message)
+            showProgress()
+        }
         ensureCameraPermissionAndStart()
     }
 
@@ -88,21 +102,22 @@ class QrImportDialogFragment : DialogFragment() {
     }
 
     private fun startScanner() {
+        if (!isAdded || _binding == null) return
+        val generation = ++scanGeneration
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener(
             {
-                val provider = try {
-                    cameraProviderFuture.get()
-                } catch (_: Exception) {
-                    null
-                } ?: run {
-                    viewModel.setTransientMessage(getString(R.string.qr_import_camera_unavailable))
+                if (generation != scanGeneration || _binding == null) return@addListener
+                try {
+                    val provider = cameraProviderFuture.get()
+                    cameraProvider = provider
+                    bindCamera(provider)
+                } catch (error: Exception) {
+                    viewModel.setTransientMessage(
+                        error.message ?: getString(R.string.qr_import_camera_unavailable)
+                    )
                     dismissAllowingStateLoss()
-                    return@addListener
                 }
-
-                cameraProvider = provider
-                bindCamera(provider)
             },
             ContextCompat.getMainExecutor(requireContext())
         )
@@ -139,6 +154,7 @@ class QrImportDialogFragment : DialogFragment() {
         )
     }
 
+    @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     private fun analyzeImage(
         imageProxy: ImageProxy,
         scanner: com.google.mlkit.vision.barcode.BarcodeScanner
@@ -157,23 +173,62 @@ class QrImportDialogFragment : DialogFragment() {
         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         scanner.process(image)
             .addOnSuccessListener { barcodes ->
-                val rawValue = barcodes.firstNotNullOfOrNull { it.rawValue?.takeIf(String::isNotBlank) }
-                if (rawValue != null && !hasHandledResult) {
-                    hasHandledResult = true
-                    stopCamera()
-                    val didImport = viewModel.importFoodJson(rawValue)
-                    if (!didImport) {
-                        viewModel.setTransientMessage(getString(R.string.qr_import_invalid))
+                if (hasHandledResult || _binding == null || cameraProvider == null ||
+                    barcodeScanner !== scanner) return@addOnSuccessListener
+                for (barcode in barcodes) {
+                    val value = barcode.rawValue ?: continue
+                    val host = activity as? MainActivity ?: return@addOnSuccessListener
+                    if (value.startsWith(Carousel.PREFIX)) {
+                        val completed = try {
+                            receiver.accept(value)
+                        } catch (error: Exception) {
+                            binding.qrImportMessage.text = error.message ?: "Invalid QR transfer frame."
+                            continue
+                        }
+                        if (completed != null) {
+                            hasHandledResult = true
+                            stopCamera()
+                            dismissAllowingStateLoss()
+                            host.importPacket(completed.bytes, completed.type)
+                            break
+                        }
+                        showProgress()
+                    } else if (receiver.expected == 0 && value.trimStart().startsWith('{')) {
+                        val legacy = try {
+                            IncomingTransfer.decode(value.encodeToByteArray())
+                        } catch (error: Exception) {
+                            binding.qrImportMessage.text = error.message ?: "Invalid nutritional label QR."
+                            continue
+                        }
+                        hasHandledResult = true
+                        stopCamera()
+                        dismissAllowingStateLoss()
+                        host.reviewIncoming(legacy)
+                        break
                     }
-                    dismissAllowingStateLoss()
                 }
+            }
+            .addOnFailureListener { error ->
+                _binding?.qrImportMessage?.text = error.message ?: "The camera frame could not be decoded."
             }
             .addOnCompleteListener {
                 imageProxy.close()
             }
     }
 
+    private fun showProgress() {
+        binding.qrImportProgress.isVisible = receiver.expected > 0
+        if (receiver.expected > 0) {
+            binding.qrImportProgress.max = receiver.expected
+            binding.qrImportProgress.setProgressCompat(receiver.collected, false)
+        }
+        if (receiver.expected > 0) {
+            binding.qrImportMessage.text = "Collected ${receiver.collected} of ${receiver.expected} unique frames."
+        }
+    }
+
     private fun stopCamera() {
+        scanGeneration++
         cameraProvider?.unbindAll()
         cameraProvider = null
     }

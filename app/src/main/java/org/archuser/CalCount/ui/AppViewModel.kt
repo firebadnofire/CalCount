@@ -17,6 +17,13 @@ import org.archuser.CalCount.data.model.NutritionSnapshot
 import org.archuser.CalCount.data.model.VolumeUnit
 import org.archuser.CalCount.data.model.WeightUnit
 import org.archuser.CalCount.domain.NutritionCalculator
+import org.archuser.CalCount.data.model.CatalogMetadata
+import org.archuser.CalCount.data.model.LogSourceType
+import org.archuser.CalCount.data.model.Recipe
+import org.archuser.CalCount.domain.RecipeCalculator
+import org.archuser.CalCount.data.Carousel
+import org.archuser.CalCount.data.ImportDraft
+import org.archuser.CalCount.data.IncomingTransfer
 import java.util.UUID
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
@@ -91,7 +98,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 foodName = food.name,
                 json = repository.serializeCatalogFoodTransfer(
                     food = food,
-                    catalogMetadata = CalorieRepository.CatalogMetadata(
+                    catalogMetadata = CatalogMetadata(
                         catalogId = metadata.catalogId,
                         revision = metadata.revision,
                         publisher = metadata.publisher,
@@ -104,34 +111,53 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
         } catch (error: Exception) {
-            failExport("That catalog JSON could not be exported: ${error.message ?: "unknown error"}")
+            failExport("That catalog label could not be exported: ${error.message ?: "unknown error"}")
         }
     }
 
-    fun importFoodJson(rawJson: String): Boolean {
-        val importedFood = try {
-            repository.parseFoodTransfer(rawJson)
-        } catch (error: IllegalArgumentException) {
-            return fail(error.message ?: "That file could not be imported.")
-        } catch (error: Exception) {
-            return fail("That file could not be imported: ${error.message ?: "unknown error"}")
-        }
+    internal var importDraft: ImportDraft? = null
+        private set
 
-        val resolvedFood = importedFood.copy(
-            id = UUID.randomUUID().toString(),
-            createdAtEpochMillis = System.currentTimeMillis()
-        )
-        val updatedFoods = (appState.foods + resolvedFood).sortedBy { it.name.lowercase() }
-        return persist(
-            appState.copy(foods = updatedFoods),
-            successMessage = "${resolvedFood.name} imported to your food library."
-        )
+    internal fun beginImport(incoming: IncomingTransfer): Boolean = try {
+        importDraft = ImportDraft(appState, incoming)
+        true
+    } catch (error: Exception) {
+        fail(error.message ?: "The transfer could not be opened.")
+    }
+
+    internal fun abandonImport() {
+        importDraft = null
+    }
+
+    internal fun commitImport(): Boolean {
+        val draft = importDraft ?: return false
+        if (appState.foods != draft.original.foods || appState.recipes != draft.original.recipes) {
+            beginImport(draft.incoming)
+            return fail("The library changed. Review the updated import choices.")
+        }
+        return persist(draft.finish(appState), "Transfer imported.") { importDraft = null }
+    }
+
+    internal var pendingDocument: TransferFile? = null
+    internal var pendingBroadcast: Broadcast? = null
+    internal var qrReceiver = Carousel.Receiver()
+
+    internal class Broadcast(val file: TransferFile) {
+        val session: UUID = UUID.randomUUID()
+        var selectedDuration: Long = Carousel.DEFAULT_DURATION_MS
+        var started: Boolean = false
+    }
+
+    internal data class TransferFile(val name: String, val type: String, val bytes: ByteArray) {
+        val mime: String get() = if (type == "ccnl") "application/json" else "application/octet-stream"
     }
 
     fun deleteFood(foodId: String): Boolean {
         val food = getFood(foodId)
             ?: return fail("That food is no longer available. Refresh the library and try again.")
 
+        val dependents = appState.recipes.filter { recipe -> recipe.ingredients.any { it.foodId == foodId } }
+        if (dependents.isNotEmpty()) return fail("Remove ${food.name} from these recipes first: ${dependents.joinToString { it.name }}.")
         val updatedFoods = appState.foods.filterNot { it.id == foodId }
         return persist(
             appState.copy(foods = updatedFoods),
@@ -141,6 +167,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 editingFoodId = null
             }
         }
+    }
+
+    internal fun addMeasuredServingWeight(foodId: String, grams: Double, onError: (String) -> Unit): Boolean {
+        val food = getFood(foodId)
+        val error = when {
+            food == null -> "This ingredient is no longer in Cans."
+            food.servingWeightGrams > 0 -> "This label already has a serving weight."
+            !grams.isFinite() || grams <= 0 -> "Enter a positive serving weight in grams."
+            else -> null
+        }
+        if (error != null || food == null) {
+            onError(error ?: "This ingredient is unavailable.")
+            return false
+        }
+        val updated = food.copy(servingWeightGrams = grams)
+        return persist(
+            appState.copy(foods = appState.foods.map { if (it.id == foodId) updated else it }),
+            successMessage = null,
+            onFailure = onError
+        )
     }
 
     fun saveFood(input: SaveFoodInput): Boolean {
@@ -157,7 +203,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val kind = FoodKind.fromDisplayName(input.kind) ?: FoodKind.FOOD
         val servingAmountLabel = if (kind == FoodKind.LIQUID) "Serving volume" else "Serving weight"
         val servingAmount = parseRequiredPositiveDouble(input.servingAmount, servingAmountLabel) ?: return false
-        val servingWeightGrams = if (kind == FoodKind.FOOD) servingAmount else 0.0
+        val servingWeightGrams = if (kind == FoodKind.FOOD) servingAmount else {
+            val weight = readOptionalPositiveDouble(input.liquidServingWeight, "Serving weight") ?: return false
+            val grams = weight.value ?: 0.0
+            if (!grams.isFinite()) return fail("Serving weight must be finite.")
+            grams
+        }
         val servingVolumeMilliliters = if (kind == FoodKind.LIQUID) servingAmount else 0.0
         val calories = parseRequiredNonNegativeDouble(input.calories, "Calories") ?: return false
         val fat = parseRequiredNonNegativeDouble(input.fatGrams, "Fat") ?: return false
@@ -286,7 +337,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 zincMilligrams = zinc
             ),
             servingsPerContainer = servingsPerContainer,
-            createdAtEpochMillis = createdAt
+            createdAtEpochMillis = createdAt,
+            catalog = editingFoodId?.let(::getFood)?.catalog
         )
 
         val updatedFoods = if (editingFoodId == null) {
@@ -305,6 +357,65 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         ) {
             editingFoodId = null
+        }
+    }
+
+    fun saveRecipe(recipe: Recipe, onError: (String) -> Unit): Boolean {
+        try {
+            RecipeCalculator.calculate(recipe, appState.foods)
+        } catch (error: IllegalArgumentException) {
+            onError(error.message ?: "Invalid recipe.")
+            return false
+        }
+        return persist(
+            appState.copy(recipes = appState.recipes.filterNot { it.id == recipe.id } + recipe),
+            "Recipe saved.",
+            onFailure = onError
+        )
+    }
+
+    fun deleteRecipe(id: String): Boolean {
+        val recipe = appState.recipes.firstOrNull { it.id == id }
+            ?: return fail("That recipe is no longer available.")
+        return persist(appState.copy(recipes = appState.recipes.filterNot { it.id == id }), "${recipe.name} deleted.")
+    }
+
+    fun deleteLogEntry(id: String): Boolean {
+        val entry = appState.logs.firstOrNull { it.id == id }
+            ?: return fail("That log entry is no longer available.")
+        return persist(appState.copy(logs = appState.logs.filterNot { it.id == id }), "${entry.foodName} removed from your log.")
+    }
+
+    fun logRecipe(id: String, mealType: MealType, rawAmount: String, onError: (String) -> Unit): Boolean {
+        fun reject(message: String): Boolean {
+            onError(message)
+            return false
+        }
+        val recipe = appState.recipes.firstOrNull { it.id == id } ?: return reject("That recipe is no longer available.")
+        val amount = rawAmount.trim().toDoubleOrNull()
+        if (amount == null || !amount.isFinite() || amount <= 0) return reject("Enter a positive serving count.")
+        return try {
+            val result = RecipeCalculator.calculate(recipe, appState.foods)
+            val snapshot = NutritionCalculator.scaleNutrition(result.perServing, amount)
+            require(MainMacro.entries.all { it.reportedValue(snapshot)?.isFinite() != false }) {
+                "The consumed nutrition exceeds the supported range."
+            }
+            val log = LogEntry(
+                id = UUID.randomUUID().toString(),
+                foodId = recipe.id,
+                foodName = recipe.name,
+                servingDescription = "Recipe serving",
+                mealType = mealType,
+                inputMode = InputMode.SERVINGS,
+                consumedServings = amount,
+                consumedWeightGrams = 0.0,
+                calculatedNutrition = snapshot,
+                sourceType = LogSourceType.RECIPE,
+                nutritionCompleteness = result.completeness
+            )
+            persist(appState.copy(logs = appState.logs + log), "${recipe.name} logged.", onFailure = onError)
+        } catch (error: IllegalArgumentException) {
+            reject(error.message ?: "Invalid recipe amount.")
         }
     }
 
@@ -457,6 +568,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun persist(
         updatedState: AppState,
         successMessage: String?,
+        onFailure: (String) -> Unit = ::setMessage,
         afterSuccess: (() -> Unit)? = null
     ): Boolean {
         return when (val writeResult = repository.saveState(updatedState)) {
@@ -468,7 +580,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 true
             }
 
-            is CalorieRepository.WriteResult.Failure -> fail(writeResult.message)
+            is CalorieRepository.WriteResult.Failure -> {
+                onFailure(writeResult.message)
+                false
+            }
         }
     }
 
@@ -477,7 +592,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             foods = appState.foods.sortedBy { it.name.lowercase() },
             logs = appState.logs.sortedByDescending(LogEntry::loggedAtEpochMillis),
             goals = appState.goals,
-            editingFood = appState.foods.firstOrNull { it.id == editingFoodId }
+            editingFood = appState.foods.firstOrNull { it.id == editingFoodId },
+            recipes = appState.recipes.sortedBy { it.name.lowercase() }
         )
     }
 
@@ -572,6 +688,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val name: String,
         val servingDescription: String,
         val servingAmount: String,
+        val liquidServingWeight: String = "",
         val calories: String,
         val fatGrams: String,
         val carbsGrams: String,

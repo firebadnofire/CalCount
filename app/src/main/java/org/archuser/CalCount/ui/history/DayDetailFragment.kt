@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.LogEntry
+import org.archuser.CalCount.ui.confirmLogDeletion
 import org.archuser.CalCount.data.model.MacroUnit
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.MealType
@@ -67,6 +68,7 @@ class DayDetailFragment : Fragment() {
         val zoneId = ZoneId.systemDefault()
         val dayNutrition = state.nutritionForDate(day, zoneId)
         val dayLogs = state.logsForDate(day, zoneId)
+        val completeness = UiFormatters.logCompleteness(dayLogs)
         val mainMacro = state.goals.mainMacro
 
         binding.todayDate.text = day.format(titleFormatter)
@@ -77,7 +79,7 @@ class DayDetailFragment : Fragment() {
         }
 
         binding.mainMacroConsumedLabel.text = "${mainMacro.displayName} consumed"
-        binding.mainMacroConsumedValue.text = UiFormatters.mainMacroCompactValue(dayNutrition, mainMacro)
+        binding.mainMacroConsumedValue.text = UiFormatters.mainMacroCompactValue(dayNutrition, mainMacro, completeness[mainMacro])
 
         val shouldShowSecondaryCalories = state.goals.showCaloriesInLivePreview && mainMacro != MainMacro.CALORIES
         binding.mainMacroSecondaryCalories.isVisible = shouldShowSecondaryCalories
@@ -90,11 +92,13 @@ class DayDetailFragment : Fragment() {
         if (target != null) {
             binding.mainMacroGoalValue.text = formatTargetValue(target, mainMacro)
             val remaining = target - mainMacro.valueOf(dayNutrition)
-            binding.mainMacroRemainingValue.text = formatRemainingValue(remaining, mainMacro)
+            binding.mainMacroRemainingValue.text = if (completeness[mainMacro] == null) {
+                formatRemainingValue(remaining, mainMacro)
+            } else "Unknown"
         }
 
         renderNutritionSummary(
-            summaryLines = UiFormatters.dashboardSummaryLines(dayNutrition, state.goals)
+            summaryLines = UiFormatters.dashboardSummaryLines(dayNutrition, state.goals, completeness)
         )
 
         binding.todayEmptyState.text = "No food logged for this day."
@@ -156,11 +160,17 @@ class DayDetailFragment : Fragment() {
             itemBinding.foodName.text = entry.foodName
             itemBinding.foodAmount.text = UiFormatters.entryAmount(entry, state.goals)
             itemBinding.foodCalories.text =
-                UiFormatters.mainMacroLabeledValue(entry.calculatedNutrition, state.goals.mainMacro)
+                UiFormatters.mainMacroLabeledValue(
+                    entry.calculatedNutrition, state.goals.mainMacro, entry.nutritionCompleteness?.get(state.goals.mainMacro)
+                )
             itemBinding.foodMacros.text =
-                UiFormatters.macroSummarySelectionLine(entry.calculatedNutrition, state.goals).orEmpty()
+                UiFormatters.logNutrientDetails(entry, state.goals)
             itemBinding.foodMeta.text = "${entry.servingDescription} • ${UiFormatters.time(entry.loggedAtEpochMillis)}"
 
+            itemBinding.root.setOnLongClickListener {
+                confirmLogDeletion(requireContext(), entry, viewModel)
+                true
+            }
             container.addView(itemBinding.root)
         }
     }

@@ -12,6 +12,7 @@ import androidx.navigation.fragment.findNavController
 import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.LogEntry
 import org.archuser.CalCount.data.model.NutritionSnapshot
+import org.archuser.CalCount.data.model.NutrientCompleteness
 import org.archuser.CalCount.databinding.FragmentHistoryBinding
 import org.archuser.CalCount.databinding.ItemHistoryDayBinding
 import org.archuser.CalCount.ui.AppUiState
@@ -59,11 +60,17 @@ class HistoryFragment : Fragment() {
                 total + entry.calculatedNutrition
             }
 
+            val completeness = UiFormatters.logCompleteness(entries)
             val itemBinding = ItemHistoryDayBinding.inflate(layoutInflater, binding.historyDaysContainer, false)
             itemBinding.dayDate.text = day.format(dateFormatter)
-            itemBinding.dayCalories.text = UiFormatters.mainMacroLabeledValue(nutrition, state.goals.mainMacro)
-            itemBinding.dayMacros.text = UiFormatters.macroSummarySelectionLine(nutrition, state.goals).orEmpty()
-            itemBinding.dayMeta.text = "${entries.size} entries"
+            itemBinding.dayCalories.text = UiFormatters.mainMacroLabeledValue(nutrition, state.goals.mainMacro, completeness[state.goals.mainMacro])
+            itemBinding.dayMacros.text = UiFormatters.macroSummarySelectionLine(nutrition, state.goals, completeness = completeness).orEmpty()
+            val uncertainty = when {
+                NutrientCompleteness.INCOMPLETE in completeness.values -> " · Incomplete nutrient totals"
+                NutrientCompleteness.UNKNOWN in completeness.values -> " · Some nutrients unknown"
+                else -> ""
+            }
+            itemBinding.dayMeta.text = "${entries.size} entries$uncertainty"
             itemBinding.root.setOnClickListener {
                 findNavController().navigate(
                     R.id.dayDetailFragment,

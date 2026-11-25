@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CalCount Nutritional Labels v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schema_version",
+    "food"
+  ],
+  "properties": {
+    "format": {
+      "const": "ccnl"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "food": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "servingDescription",
+        "kind",
+        "nutritionPerServing"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "servingDescription": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "FOOD",
+            "LIQUID"
+          ]
+        },
+        "servingWeightGrams": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "servingVolumeMilliliters": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "servingsPerContainer": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "nutritionPerServing": {
+          "type": "object",
+          "required": [
+            "calories",
+            "fatGrams",
+            "carbsGrams",
+            "proteinGrams"
+          ],
+          "properties": {
+            "calories": {
+              "type": "number",
+              "minimum": 0
+            },
+            "fatGrams": {
+              "type": "number",
+              "minimum": 0
+            },
+            "carbsGrams": {
+              "type": "number",
+              "minimum": 0
+            },
+            "proteinGrams": {
+              "type": "number",
+              "minimum": 0
+            },
+            "saturatedFatGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "fiberGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "sugarGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "addedSugarsGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "sugarAlcoholsGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "sodiumMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "potassiumMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "cholesterolMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "transFatGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "monounsaturatedFatGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "polyunsaturatedFatGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "omega3FattyAcidsGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "omega6FattyAcidsGrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "calciumMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "chlorideMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "folateMicrograms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "ironMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "magnesiumMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "phosphorusMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "vitaminAMicrograms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "vitaminB12Micrograms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "vitaminCMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "vitaminDMicrograms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "vitaminEMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "vitaminKMicrograms": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "zincMilligrams": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        },
+        "createdAtEpochMillis": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "FOOD"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "servingWeightGrams"
+        ],
+        "properties": {
+          "servingWeightGrams": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "servingVolumeMilliliters"
+        ],
+        "properties": {
+          "servingVolumeMilliliters": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    },
+    "catalog": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "catalogId",
+        "revision",
+        "publisher",
+        "sourceName"
+      ],
+      "properties": {
+        "catalogId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "regionCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verifiedAtEpochMillis": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

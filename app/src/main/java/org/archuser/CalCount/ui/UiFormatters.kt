@@ -2,8 +2,12 @@ package org.archuser.CalCount.ui
 
 import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.Goals
+import org.archuser.CalCount.data.model.IngredientUnit
+import org.archuser.CalCount.data.model.Recipe
 import org.archuser.CalCount.data.model.InputMode
 import org.archuser.CalCount.data.model.LogEntry
+import org.archuser.CalCount.data.model.LogSourceType
+import org.archuser.CalCount.data.model.NutrientCompleteness
 import org.archuser.CalCount.data.model.MacroUnit
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.NutritionSnapshot
@@ -73,21 +77,61 @@ object UiFormatters {
         return parts.joinToString(" • ").ifBlank { null }
     }
 
-    fun mainMacroCompactValue(nutritionSnapshot: NutritionSnapshot, mainMacro: MainMacro): String {
-        return formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)
+    fun mainMacroCompactValue(
+        nutritionSnapshot: NutritionSnapshot,
+        mainMacro: MainMacro,
+        completeness: NutrientCompleteness? = null
+    ): String {
+        if (completeness == NutrientCompleteness.UNKNOWN) return "Unknown"
+        val formatted = formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)
+        return if (completeness == NutrientCompleteness.INCOMPLETE) "$formatted (incomplete)" else formatted
     }
 
-    fun mainMacroLabeledValue(nutritionSnapshot: NutritionSnapshot, mainMacro: MainMacro): String {
-        if (mainMacro == MainMacro.CALORIES) {
+    fun mainMacroLabeledValue(
+        nutritionSnapshot: NutritionSnapshot,
+        mainMacro: MainMacro,
+        completeness: NutrientCompleteness? = null
+    ): String {
+        if (mainMacro == MainMacro.CALORIES && completeness != NutrientCompleteness.UNKNOWN &&
+            completeness != NutrientCompleteness.INCOMPLETE) {
             return calories(nutritionSnapshot.calories)
         }
-        return "${mainMacro.shortLabel} ${formatMacroValue(mainMacro.valueOf(nutritionSnapshot), mainMacro.unit)}"
+        return "${mainMacro.shortLabel} ${mainMacroCompactValue(nutritionSnapshot, mainMacro, completeness)}"
+    }
+
+    fun logCompleteness(entries: List<LogEntry>): Map<MainMacro, NutrientCompleteness> {
+        return MainMacro.entries.mapNotNull { nutrient ->
+            val hasUncertainty = entries.any {
+                it.nutritionCompleteness?.get(nutrient) in
+                    setOf(NutrientCompleteness.UNKNOWN, NutrientCompleteness.INCOMPLETE)
+            }
+            if (!hasUncertainty) return@mapNotNull null
+            val hasValue = entries.any { nutrient.reportedValue(it.calculatedNutrition) != null }
+            nutrient to if (hasValue) NutrientCompleteness.INCOMPLETE else NutrientCompleteness.UNKNOWN
+        }.toMap()
+    }
+
+    fun logNutrientDetails(entry: LogEntry, goals: Goals): String {
+        val statuses = entry.nutritionCompleteness
+            ?: return macroSummarySelectionLine(entry.calculatedNutrition, goals).orEmpty()
+        val summary = macroSummarySelectionLine(entry.calculatedNutrition, goals, completeness = statuses)
+        val uncertain = MainMacro.entries.filter {
+            it != goals.mainMacro && it.targetOf(goals) == null && !it.isSelectedInMacroSummary(goals)
+        }
+        val incomplete = uncertain.filter { statuses[it] == NutrientCompleteness.INCOMPLETE }
+        val unknown = uncertain.filter { statuses[it] == NutrientCompleteness.UNKNOWN }
+        return buildList {
+            if (!summary.isNullOrBlank()) add(summary)
+            incomplete.forEach { add(mainMacroLabeledValue(entry.calculatedNutrition, it, statuses[it])) }
+            if (unknown.isNotEmpty()) add("Unknown: ${unknown.joinToString { it.displayName }}")
+        }.joinToString("\n")
     }
 
     fun macroSummarySelectionLine(
         nutritionSnapshot: NutritionSnapshot,
         goals: Goals,
-        includeCaloriesUnderMainMacro: Boolean = true
+        includeCaloriesUnderMainMacro: Boolean = true,
+        completeness: Map<MainMacro, NutrientCompleteness> = emptyMap()
     ): String? {
         val mainMacro = goals.mainMacro
         val parts = buildList {
@@ -100,16 +144,57 @@ object UiFormatters {
             }
         }.toMutableList()
 
-        val selectedMacros = MainMacro.entries
-            .filter { it != MainMacro.CALORIES }
-            .filter { it != mainMacro }
-            .filter { it.targetOf(goals) != null || it.isSelectedInMacroSummary(goals) }
-            .map { macro ->
-                "${macro.shortLabel} ${formatMacroValue(macro.valueOf(nutritionSnapshot), macro.unit)}"
-            }
+        val selectedMacros = summaryNutrients(goals).map { macro ->
+            mainMacroLabeledValue(nutritionSnapshot, macro, completeness[macro])
+        }
         parts += selectedMacros
 
         return parts.joinToString(" • ").ifBlank { null }
+    }
+
+    fun summaryNutrients(goals: Goals): List<MainMacro> = MainMacro.entries.filter {
+        it != MainMacro.CALORIES && it != goals.mainMacro &&
+            (it.targetOf(goals) != null || it.isSelectedInMacroSummary(goals))
+    }
+
+    fun recipeMetadata(recipe: Recipe): String {
+        val count = recipe.ingredients.size
+        val ingredient = if (count == 1) "ingredient" else "ingredients"
+        return "$count $ingredient • Yields ${servings(recipe.servings)}"
+    }
+
+    fun ingredientAmount(quantity: Double, unit: IngredientUnit): String =
+        if (unit == IngredientUnit.SERVINGS) servings(quantity)
+        else "${number(quantity)} ${ingredientUnit(unit)}"
+
+    fun ingredientUnit(unit: IngredientUnit): String = when (unit) {
+        IngredientUnit.SERVINGS -> "servings"
+        IngredientUnit.GRAMS -> "g"
+        IngredientUnit.OUNCES -> "oz"
+        IngredientUnit.MILLILITERS -> "mL"
+        IngredientUnit.LITERS -> "L"
+        IngredientUnit.FLUID_OUNCES -> "fl oz"
+    }
+
+    fun recipeNutrientValue(
+        nutrient: MainMacro,
+        nutrition: NutritionSnapshot,
+        status: NutrientCompleteness?
+    ): String {
+        val value = nutrient.reportedValue(nutrition)
+        if (value == null || status == NutrientCompleteness.UNKNOWN) return "Unknown"
+        val formatted = if (nutrient == MainMacro.CALORIES) calories(value)
+            else "${number(value)} ${nutrient.unit.suffix.trim()}"
+        return if (status == NutrientCompleteness.INCOMPLETE) "$formatted subtotal" else formatted
+    }
+
+    fun recipeNutrientLabel(
+        nutrient: MainMacro,
+        nutrition: NutritionSnapshot,
+        status: NutrientCompleteness?
+    ): String {
+        val value = recipeNutrientValue(nutrient, nutrition, status)
+        return if (nutrient == MainMacro.CALORIES && value != "Unknown") value else "${nutrient.shortLabel} $value"
     }
 
     private fun formatMacroValue(value: Double, unit: MacroUnit): String {
@@ -122,6 +207,7 @@ object UiFormatters {
     }
 
     fun entryAmount(logEntry: LogEntry, goals: Goals): String {
+        if (logEntry.sourceType == LogSourceType.RECIPE) return servings(logEntry.consumedServings)
         val amountLabel = when (logEntry.foodKind) {
             FoodKind.FOOD -> weight(logEntry.consumedWeightGrams, goals.preferredUnit)
             FoodKind.LIQUID -> volume(logEntry.consumedVolumeMilliliters, goals.preferredLiquidUnit)
@@ -185,7 +271,8 @@ object UiFormatters {
 
     fun dashboardSummaryLines(
         nutritionSnapshot: NutritionSnapshot,
-        goals: Goals
+        goals: Goals,
+        completeness: Map<MainMacro, NutrientCompleteness> = emptyMap()
     ): List<String> {
         val mainMacro = goals.mainMacro
         val lines = mutableListOf<String>()
@@ -205,6 +292,9 @@ object UiFormatters {
                     (macro != mainMacro && macro.isSelectedInMacroSummary(goals))
             }
             .map { macro ->
+                if (completeness[macro] != null) {
+                    return@map "${macro.displayName} ${mainMacroCompactValue(nutritionSnapshot, macro, completeness[macro])}"
+                }
                 val consumed = macro.valueOf(nutritionSnapshot)
                 val target = macro.targetOf(goals)
                 when (macro.unit) {

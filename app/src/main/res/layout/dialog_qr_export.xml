@@ -10,15 +10,39 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/qr_export_message"
+        android:textAppearance="?attr/textAppearanceTitleSmall"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <TextView
+        android:id="@+id/qr_export_help"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/qr_duration_layout"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Frame duration">
+        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            android:id="@+id/qr_duration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <ImageView
         android:id="@+id/qr_image"
         android:layout_width="match_parent"
-        android:layout_height="320dp"
+        android:layout_height="wrap_content"
+        android:maxHeight="320dp"
         android:layout_marginTop="16dp"
         android:adjustViewBounds="true"
         android:contentDescription="@string/qr_export_title"
+        android:visibility="gone"
         android:scaleType="fitCenter" />
 </LinearLayout>

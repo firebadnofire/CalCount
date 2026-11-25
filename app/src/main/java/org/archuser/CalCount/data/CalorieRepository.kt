@@ -1,6 +1,11 @@
 package org.archuser.CalCount.data
 
 import android.content.Context
+import org.archuser.CalCount.data.FoodJson.parseFood
+import org.archuser.CalCount.data.FoodJson.parseNutrition
+import org.archuser.CalCount.data.FoodJson.serializeFood
+import org.archuser.CalCount.data.FoodJson.serializeNutrition
+import org.archuser.CalCount.data.model.CatalogMetadata
 import org.archuser.CalCount.data.model.AppState
 import org.archuser.CalCount.data.model.Food
 import org.archuser.CalCount.data.model.FoodKind
@@ -9,9 +14,10 @@ import org.archuser.CalCount.data.model.InputMode
 import org.archuser.CalCount.data.model.LogEntry
 import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.MealType
-import org.archuser.CalCount.data.model.NutritionSnapshot
 import org.archuser.CalCount.data.model.VolumeUnit
 import org.archuser.CalCount.data.model.WeightUnit
+import org.archuser.CalCount.data.model.LogSourceType
+import org.archuser.CalCount.data.model.NutrientCompleteness
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -19,81 +25,68 @@ class CalorieRepository(context: Context) {
 
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun loadState(): LoadResult {
-        val rawState = preferences.getString(KEY_APP_STATE, null)
-            ?: return LoadResult(AppState())
+    private val stateFile = StateFile(context.filesDir)
+    private var lastValidState: String? = null
+    private var writesEnabled = false
 
+    @Synchronized
+    fun loadState(): LoadResult {
+        writesEnabled = false
         return try {
-            LoadResult(parseAppState(JSONObject(rawState)))
+            val stored = stateFile.load({ preferences.getString(KEY_APP_STATE, null) }) {
+                parseAppState(TransferJson.decode(it.encodeToByteArray(), Int.MAX_VALUE))
+            }
+            lastValidState = stored?.raw
+            writesEnabled = true
+            LoadResult(
+                state = stored?.value ?: AppState(),
+                errorMessage = if (stored?.recovered == true) {
+                    "The latest save could not be read. The previous valid CalCount state was recovered."
+                } else null
+            )
         } catch (error: Exception) {
             LoadResult(
                 state = AppState(),
-                errorMessage = "Stored app data could not be read and was reset. Create foods again to continue."
+                errorMessage = "Stored data could not be recovered. Saving is disabled to protect existing data: ${error.message}"
             )
         }
     }
 
+    @Synchronized
     fun saveState(state: AppState): WriteResult {
+        if (!writesEnabled) return WriteResult.Failure("Saving is disabled because stored data could not be loaded.")
         return try {
-            val didPersist = preferences.edit()
-                .putString(KEY_APP_STATE, serializeAppState(state).toString())
-                .commit()
-
-            if (didPersist) {
-                WriteResult.Success
-            } else {
-                WriteResult.Failure("Local changes could not be saved. Check device storage and try again.")
-            }
+            val raw = serializeAppState(state).toString()
+            stateFile.save(raw, lastValidState)
+            lastValidState = raw
+            WriteResult.Success
         } catch (error: Exception) {
             WriteResult.Failure("Local changes could not be saved: ${error.message ?: "unknown error"}")
         }
     }
 
-    fun serializeFoodTransfer(food: Food): String {
-        return JSONObject()
-            .put("app", "CalCount")
-            .put("type", "food")
-            .put("version", FOOD_TRANSFER_VERSION)
-            .put("exportedAtEpochMillis", System.currentTimeMillis())
-            .put("food", serializeFoodTransferPayload(food))
-            .toString(2)
-    }
+    fun serializeFoodTransfer(food: Food): String = LabelCodec.encode(food).decodeToString()
 
-    fun serializeCatalogFoodTransfer(food: Food, catalogMetadata: CatalogMetadata): String {
-        val exportedAt = System.currentTimeMillis()
-        return JSONObject()
-            .put("app", "CalCount")
-            .put("type", "food")
-            .put("version", FOOD_TRANSFER_VERSION)
-            .put("exportedAtEpochMillis", exportedAt)
-            .put("catalog", serializeCatalogMetadata(catalogMetadata, exportedAt))
-            .put("food", serializeFoodTransferPayload(food))
-            .toString(2)
-    }
-
-    fun parseFoodTransfer(rawJson: String): Food {
-        val rootObject = JSONObject(rawJson)
-        val foodObject = when {
-            rootObject.optJSONObject("food") != null -> {
-                val type = rootObject.optString("type")
-                require(type == "food") { "This file does not contain a food export." }
-                val version = rootObject.optInt("version", FOOD_TRANSFER_VERSION)
-                require(version == FOOD_TRANSFER_VERSION) {
-                    "This food export version is not supported."
-                }
-                rootObject.getJSONObject("food")
-            }
-
-            else -> rootObject
-        }
-        return parseFood(foodObject)
-    }
+    fun serializeCatalogFoodTransfer(food: Food, catalogMetadata: CatalogMetadata): String =
+        LabelCodec.encode(food.copy(catalog = catalogMetadata.copy(
+            verifiedAtEpochMillis = System.currentTimeMillis()
+        ))).decodeToString()
 
     private fun parseAppState(jsonObject: JSONObject): AppState {
+        require(jsonObject.has("foods") || jsonObject.has("logs") || jsonObject.has("goals")) {
+            "The saved document is missing application state."
+        }
+        for (key in listOf("foods", "logs", "recipes")) {
+            if (jsonObject.has(key)) require(jsonObject.optJSONArray(key) != null) { "Invalid saved $key." }
+        }
+        if (jsonObject.has("goals")) require(jsonObject.optJSONObject("goals") != null) { "Invalid saved goals." }
         val foods = jsonObject.optJSONArray("foods")?.let(::parseFoods).orEmpty()
         val logs = jsonObject.optJSONArray("logs")?.let(::parseLogs).orEmpty()
         val goals = jsonObject.optJSONObject("goals")?.let(::parseGoals) ?: Goals()
-        return AppState(foods = foods, logs = logs, goals = goals)
+        val recipes = jsonObject.optJSONArray("recipes")?.let { array ->
+            List(array.length()) { RecipeJson.decode(array.getJSONObject(it)) }
+        }.orEmpty()
+        return AppState(foods = foods, logs = logs, goals = goals, recipes = recipes)
     }
 
     private fun serializeAppState(state: AppState): JSONObject {
@@ -101,6 +94,7 @@ class CalorieRepository(context: Context) {
             .put("foods", JSONArray().apply { state.foods.forEach { put(serializeFood(it)) } })
             .put("logs", JSONArray().apply { state.logs.forEach { put(serializeLog(it)) } })
             .put("goals", serializeGoals(state.goals))
+            .put("recipes", JSONArray().apply { state.recipes.forEach { put(RecipeJson.encode(it)) } })
     }
 
     private fun parseFoods(array: JSONArray): List<Food> {
@@ -119,36 +113,6 @@ class CalorieRepository(context: Context) {
         }
     }
 
-    private fun parseFood(jsonObject: JSONObject): Food {
-        val kind = runCatching {
-            FoodKind.valueOf(jsonObject.optString("kind", FoodKind.FOOD.name))
-        }.getOrDefault(FoodKind.FOOD)
-        val servingWeightGrams = jsonObject.optNullableDouble("servingWeightGrams")
-            ?: if (kind == FoodKind.FOOD) {
-                jsonObject.getDouble("servingWeightGrams")
-            } else {
-                0.0
-            }
-        val servingVolumeMilliliters = jsonObject.optNullableDouble("servingVolumeMilliliters")
-            ?: if (kind == FoodKind.LIQUID) {
-                jsonObject.getDouble("servingVolumeMilliliters")
-            } else {
-                0.0
-            }
-
-        return Food(
-            id = jsonObject.getString("id"),
-            name = jsonObject.getString("name"),
-            servingDescription = jsonObject.getString("servingDescription"),
-            kind = kind,
-            servingWeightGrams = servingWeightGrams,
-            servingVolumeMilliliters = servingVolumeMilliliters,
-            nutritionPerServing = parseNutrition(jsonObject.getJSONObject("nutritionPerServing")),
-            servingsPerContainer = jsonObject.optNullableDouble("servingsPerContainer"),
-            createdAtEpochMillis = jsonObject.optLong("createdAtEpochMillis")
-        )
-    }
-
     private fun parseLog(jsonObject: JSONObject): LogEntry {
         return LogEntry(
             id = jsonObject.getString("id"),
@@ -164,7 +128,13 @@ class CalorieRepository(context: Context) {
             consumedWeightGrams = jsonObject.getDouble("consumedWeightGrams"),
             consumedVolumeMilliliters = jsonObject.optDouble("consumedVolumeMilliliters", 0.0),
             calculatedNutrition = parseNutrition(jsonObject.getJSONObject("calculatedNutrition")),
-            loggedAtEpochMillis = jsonObject.optLong("loggedAtEpochMillis")
+            loggedAtEpochMillis = jsonObject.optLong("loggedAtEpochMillis"),
+            sourceType = LogSourceType.fromWireName(jsonObject.optString("source_type", "food")),
+            nutritionCompleteness = jsonObject.optJSONObject("nutrition_completeness")?.let { stored ->
+                MainMacro.entries.filter { stored.has(it.name) }.associateWith {
+                    NutrientCompleteness.valueOf(stored.getString(it.name))
+                }
+            }
         )
     }
 
@@ -251,89 +221,6 @@ class CalorieRepository(context: Context) {
         )
     }
 
-    private fun parseNutrition(jsonObject: JSONObject): NutritionSnapshot {
-        return NutritionSnapshot(
-            calories = jsonObject.getDouble("calories"),
-            fatGrams = jsonObject.getDouble("fatGrams"),
-            carbsGrams = jsonObject.getDouble("carbsGrams"),
-            proteinGrams = jsonObject.getDouble("proteinGrams"),
-            saturatedFatGrams = jsonObject.optNullableDouble("saturatedFatGrams"),
-            fiberGrams = jsonObject.optNullableDouble("fiberGrams"),
-            sugarGrams = jsonObject.optNullableDouble("sugarGrams"),
-            addedSugarsGrams = jsonObject.optNullableDouble("addedSugarsGrams"),
-            sugarAlcoholsGrams = jsonObject.optNullableDouble("sugarAlcoholsGrams"),
-            sodiumMilligrams = jsonObject.optNullableDouble("sodiumMilligrams"),
-            potassiumMilligrams = jsonObject.optNullableDouble("potassiumMilligrams"),
-            cholesterolMilligrams = jsonObject.optNullableDouble("cholesterolMilligrams"),
-            transFatGrams = jsonObject.optNullableDouble("transFatGrams"),
-            monounsaturatedFatGrams = jsonObject.optNullableDouble("monounsaturatedFatGrams"),
-            polyunsaturatedFatGrams = jsonObject.optNullableDouble("polyunsaturatedFatGrams"),
-            omega3FattyAcidsGrams = jsonObject.optNullableDouble("omega3FattyAcidsGrams"),
-            omega6FattyAcidsGrams = jsonObject.optNullableDouble("omega6FattyAcidsGrams"),
-            calciumMilligrams = jsonObject.optNullableDouble("calciumMilligrams"),
-            chlorideMilligrams = jsonObject.optNullableDouble("chlorideMilligrams"),
-            folateMicrograms = jsonObject.optNullableDouble("folateMicrograms"),
-            ironMilligrams = jsonObject.optNullableDouble("ironMilligrams"),
-            magnesiumMilligrams = jsonObject.optNullableDouble("magnesiumMilligrams"),
-            phosphorusMilligrams = jsonObject.optNullableDouble("phosphorusMilligrams"),
-            vitaminAMicrograms = jsonObject.optNullableDouble("vitaminAMicrograms"),
-            vitaminB12Micrograms = jsonObject.optNullableDouble("vitaminB12Micrograms"),
-            vitaminCMilligrams = jsonObject.optNullableDouble("vitaminCMilligrams"),
-            vitaminDMicrograms = jsonObject.optNullableDouble("vitaminDMicrograms"),
-            vitaminEMilligrams = jsonObject.optNullableDouble("vitaminEMilligrams"),
-            vitaminKMicrograms = jsonObject.optNullableDouble("vitaminKMicrograms"),
-            zincMilligrams = jsonObject.optNullableDouble("zincMilligrams")
-        )
-    }
-
-    private fun serializeFood(food: Food): JSONObject {
-        return JSONObject()
-            .put("id", food.id)
-            .put("name", food.name)
-            .put("servingDescription", food.servingDescription)
-            .put("kind", food.kind.name)
-            .put("servingWeightGrams", food.servingWeightGrams)
-            .put("servingVolumeMilliliters", food.servingVolumeMilliliters)
-            .put("nutritionPerServing", serializeNutrition(food.nutritionPerServing))
-            .putNullable("servingsPerContainer", food.servingsPerContainer)
-            .put("createdAtEpochMillis", food.createdAtEpochMillis)
-    }
-
-    private fun serializeFoodTransferPayload(food: Food): JSONObject {
-        return JSONObject()
-            .put("id", food.id)
-            .put("name", food.name)
-            .put("servingDescription", food.servingDescription)
-            .put("kind", food.kind.name)
-            .putNullable(
-                "servingWeightGrams",
-                food.servingWeightGrams.takeUnless { food.kind == FoodKind.LIQUID }
-            )
-            .putNullable(
-                "servingVolumeMilliliters",
-                food.servingVolumeMilliliters.takeUnless { food.kind == FoodKind.FOOD }
-            )
-            .put("nutritionPerServing", serializeNutrition(food.nutritionPerServing))
-            .putNullable("servingsPerContainer", food.servingsPerContainer)
-            .put("createdAtEpochMillis", food.createdAtEpochMillis)
-    }
-
-    private fun serializeCatalogMetadata(
-        catalogMetadata: CatalogMetadata,
-        exportedAtEpochMillis: Long
-    ): JSONObject {
-        return JSONObject()
-            .put("catalogId", catalogMetadata.catalogId)
-            .put("revision", catalogMetadata.revision)
-            .put("publisher", catalogMetadata.publisher)
-            .put("sourceName", catalogMetadata.sourceName)
-            .putNullableValue("sourceUrl", catalogMetadata.sourceUrl)
-            .put("verifiedAtEpochMillis", exportedAtEpochMillis)
-            .putNullableValue("license", catalogMetadata.license)
-            .putNullableValue("regionCode", catalogMetadata.regionCode)
-            .putNullableValue("notes", catalogMetadata.notes)
-    }
-
     private fun serializeLog(logEntry: LogEntry): JSONObject {
         return JSONObject()
             .put("id", logEntry.id)
@@ -348,6 +235,14 @@ class CalorieRepository(context: Context) {
             .put("consumedVolumeMilliliters", logEntry.consumedVolumeMilliliters)
             .put("calculatedNutrition", serializeNutrition(logEntry.calculatedNutrition))
             .put("loggedAtEpochMillis", logEntry.loggedAtEpochMillis)
+            .put("source_type", logEntry.sourceType.wireName)
+            .apply {
+                logEntry.nutritionCompleteness?.let { completeness ->
+                    put("nutrition_completeness", JSONObject().apply {
+                        completeness.forEach { (nutrient, status) -> put(nutrient.name, status.name) }
+                    })
+                }
+            }
     }
 
     private fun serializeGoals(goals: Goals): JSONObject {
@@ -376,45 +271,7 @@ class CalorieRepository(context: Context) {
             )
     }
 
-    private fun serializeNutrition(nutritionSnapshot: NutritionSnapshot): JSONObject {
-        return JSONObject()
-            .put("calories", nutritionSnapshot.calories)
-            .put("fatGrams", nutritionSnapshot.fatGrams)
-            .put("carbsGrams", nutritionSnapshot.carbsGrams)
-            .put("proteinGrams", nutritionSnapshot.proteinGrams)
-            .putNullable("saturatedFatGrams", nutritionSnapshot.saturatedFatGrams)
-            .putNullable("fiberGrams", nutritionSnapshot.fiberGrams)
-            .putNullable("sugarGrams", nutritionSnapshot.sugarGrams)
-            .putNullable("addedSugarsGrams", nutritionSnapshot.addedSugarsGrams)
-            .putNullable("sugarAlcoholsGrams", nutritionSnapshot.sugarAlcoholsGrams)
-            .putNullable("sodiumMilligrams", nutritionSnapshot.sodiumMilligrams)
-            .putNullable("potassiumMilligrams", nutritionSnapshot.potassiumMilligrams)
-            .putNullable("cholesterolMilligrams", nutritionSnapshot.cholesterolMilligrams)
-            .putNullable("transFatGrams", nutritionSnapshot.transFatGrams)
-            .putNullable("monounsaturatedFatGrams", nutritionSnapshot.monounsaturatedFatGrams)
-            .putNullable("polyunsaturatedFatGrams", nutritionSnapshot.polyunsaturatedFatGrams)
-            .putNullable("omega3FattyAcidsGrams", nutritionSnapshot.omega3FattyAcidsGrams)
-            .putNullable("omega6FattyAcidsGrams", nutritionSnapshot.omega6FattyAcidsGrams)
-            .putNullable("calciumMilligrams", nutritionSnapshot.calciumMilligrams)
-            .putNullable("chlorideMilligrams", nutritionSnapshot.chlorideMilligrams)
-            .putNullable("folateMicrograms", nutritionSnapshot.folateMicrograms)
-            .putNullable("ironMilligrams", nutritionSnapshot.ironMilligrams)
-            .putNullable("magnesiumMilligrams", nutritionSnapshot.magnesiumMilligrams)
-            .putNullable("phosphorusMilligrams", nutritionSnapshot.phosphorusMilligrams)
-            .putNullable("vitaminAMicrograms", nutritionSnapshot.vitaminAMicrograms)
-            .putNullable("vitaminB12Micrograms", nutritionSnapshot.vitaminB12Micrograms)
-            .putNullable("vitaminCMilligrams", nutritionSnapshot.vitaminCMilligrams)
-            .putNullable("vitaminDMicrograms", nutritionSnapshot.vitaminDMicrograms)
-            .putNullable("vitaminEMilligrams", nutritionSnapshot.vitaminEMilligrams)
-            .putNullable("vitaminKMicrograms", nutritionSnapshot.vitaminKMicrograms)
-            .putNullable("zincMilligrams", nutritionSnapshot.zincMilligrams)
-    }
-
     private fun JSONObject.putNullable(key: String, value: Double?): JSONObject {
-        return put(key, value ?: JSONObject.NULL)
-    }
-
-    private fun JSONObject.putNullableValue(key: String, value: Any?): JSONObject {
         return put(key, value ?: JSONObject.NULL)
     }
 
@@ -462,17 +319,6 @@ class CalorieRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "cal_count"
         private const val KEY_APP_STATE = "app_state"
-        private const val FOOD_TRANSFER_VERSION = 1
     }
 
-    data class CatalogMetadata(
-        val catalogId: String,
-        val revision: Int,
-        val publisher: String,
-        val sourceName: String,
-        val sourceUrl: String?,
-        val license: String?,
-        val regionCode: String?,
-        val notes: String?
-    )
 }

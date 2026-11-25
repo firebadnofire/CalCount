@@ -8,11 +8,20 @@
 
     <TextView
         android:id="@+id/qr_import_message"
+        android:accessibilityLiveRegion="polite"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/qr_import_message"
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/qr_import_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
 
     <androidx.camera.view.PreviewView
         android:id="@+id/camera_preview"

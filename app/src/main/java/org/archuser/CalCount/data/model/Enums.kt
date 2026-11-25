@@ -113,39 +113,41 @@ enum class MainMacro(
     VITAMIN_K(displayName = "Vitamin K", shortLabel = "Vit K", unit = MacroUnit.MICROGRAMS, tier = MacroTier.EXTENDED),
     ZINC(displayName = "Zinc", shortLabel = "Zinc", unit = MacroUnit.MILLIGRAMS, tier = MacroTier.EXTENDED);
 
-    fun valueOf(nutritionSnapshot: NutritionSnapshot): Double {
+    fun valueOf(nutritionSnapshot: NutritionSnapshot): Double = reportedValue(nutritionSnapshot) ?: 0.0
+
+    fun reportedValue(nutritionSnapshot: NutritionSnapshot): Double? {
         return when (this) {
             CALORIES -> nutritionSnapshot.calories
             CARBS -> nutritionSnapshot.carbsGrams
             FAT -> nutritionSnapshot.fatGrams
             PROTEIN -> nutritionSnapshot.proteinGrams
-            FIBER -> nutritionSnapshot.fiberGrams ?: 0.0
-            SUGARS -> nutritionSnapshot.sugarGrams ?: 0.0
-            SODIUM -> nutritionSnapshot.sodiumMilligrams ?: 0.0
-            ADDED_SUGARS -> nutritionSnapshot.addedSugarsGrams ?: 0.0
-            SATURATED_FAT -> nutritionSnapshot.saturatedFatGrams ?: 0.0
-            CHOLESTEROL -> nutritionSnapshot.cholesterolMilligrams ?: 0.0
-            POTASSIUM -> nutritionSnapshot.potassiumMilligrams ?: 0.0
+            FIBER -> nutritionSnapshot.fiberGrams
+            SUGARS -> nutritionSnapshot.sugarGrams
+            SODIUM -> nutritionSnapshot.sodiumMilligrams
+            ADDED_SUGARS -> nutritionSnapshot.addedSugarsGrams
+            SATURATED_FAT -> nutritionSnapshot.saturatedFatGrams
+            CHOLESTEROL -> nutritionSnapshot.cholesterolMilligrams
+            POTASSIUM -> nutritionSnapshot.potassiumMilligrams
 
-            CALCIUM -> nutritionSnapshot.calciumMilligrams ?: 0.0
-            CHLORIDE -> nutritionSnapshot.chlorideMilligrams ?: 0.0
-            FOLATE -> nutritionSnapshot.folateMicrograms ?: 0.0
-            IRON -> nutritionSnapshot.ironMilligrams ?: 0.0
-            MAGNESIUM -> nutritionSnapshot.magnesiumMilligrams ?: 0.0
-            MONOUNSATURATED_FAT -> nutritionSnapshot.monounsaturatedFatGrams ?: 0.0
-            OMEGA_3 -> nutritionSnapshot.omega3FattyAcidsGrams ?: 0.0
-            OMEGA_6 -> nutritionSnapshot.omega6FattyAcidsGrams ?: 0.0
-            PHOSPHORUS -> nutritionSnapshot.phosphorusMilligrams ?: 0.0
-            POLYUNSATURATED_FAT -> nutritionSnapshot.polyunsaturatedFatGrams ?: 0.0
-            SUGAR_ALCOHOLS -> nutritionSnapshot.sugarAlcoholsGrams ?: 0.0
-            TRANS_FAT -> nutritionSnapshot.transFatGrams ?: 0.0
-            VITAMIN_A -> nutritionSnapshot.vitaminAMicrograms ?: 0.0
-            VITAMIN_B12 -> nutritionSnapshot.vitaminB12Micrograms ?: 0.0
-            VITAMIN_C -> nutritionSnapshot.vitaminCMilligrams ?: 0.0
-            VITAMIN_D -> nutritionSnapshot.vitaminDMicrograms ?: 0.0
-            VITAMIN_E -> nutritionSnapshot.vitaminEMilligrams ?: 0.0
-            VITAMIN_K -> nutritionSnapshot.vitaminKMicrograms ?: 0.0
-            ZINC -> nutritionSnapshot.zincMilligrams ?: 0.0
+            CALCIUM -> nutritionSnapshot.calciumMilligrams
+            CHLORIDE -> nutritionSnapshot.chlorideMilligrams
+            FOLATE -> nutritionSnapshot.folateMicrograms
+            IRON -> nutritionSnapshot.ironMilligrams
+            MAGNESIUM -> nutritionSnapshot.magnesiumMilligrams
+            MONOUNSATURATED_FAT -> nutritionSnapshot.monounsaturatedFatGrams
+            OMEGA_3 -> nutritionSnapshot.omega3FattyAcidsGrams
+            OMEGA_6 -> nutritionSnapshot.omega6FattyAcidsGrams
+            PHOSPHORUS -> nutritionSnapshot.phosphorusMilligrams
+            POLYUNSATURATED_FAT -> nutritionSnapshot.polyunsaturatedFatGrams
+            SUGAR_ALCOHOLS -> nutritionSnapshot.sugarAlcoholsGrams
+            TRANS_FAT -> nutritionSnapshot.transFatGrams
+            VITAMIN_A -> nutritionSnapshot.vitaminAMicrograms
+            VITAMIN_B12 -> nutritionSnapshot.vitaminB12Micrograms
+            VITAMIN_C -> nutritionSnapshot.vitaminCMilligrams
+            VITAMIN_D -> nutritionSnapshot.vitaminDMicrograms
+            VITAMIN_E -> nutritionSnapshot.vitaminEMilligrams
+            VITAMIN_K -> nutritionSnapshot.vitaminKMicrograms
+            ZINC -> nutritionSnapshot.zincMilligrams
         }
     }
 

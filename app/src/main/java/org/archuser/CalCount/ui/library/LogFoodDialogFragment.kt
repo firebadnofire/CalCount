@@ -2,7 +2,6 @@ package org.archuser.CalCount.ui.library
 
 import android.app.Dialog
 import android.os.Bundle
-import android.view.View
 import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.DialogFragment
@@ -12,7 +11,6 @@ import org.archuser.CalCount.R
 import org.archuser.CalCount.data.model.Food
 import org.archuser.CalCount.data.model.FoodKind
 import org.archuser.CalCount.data.model.InputMode
-import org.archuser.CalCount.data.model.MainMacro
 import org.archuser.CalCount.data.model.MealType
 import org.archuser.CalCount.domain.NutritionCalculator
 import org.archuser.CalCount.databinding.DialogLogFoodBinding
@@ -128,20 +126,14 @@ class LogFoodDialogFragment : DialogFragment() {
         binding.amountLayout.error = null
 
         if (amountText.isBlank()) {
-            binding.previewAmount.text = getString(R.string.preview_waiting_amount)
-            binding.previewCalories.text = getString(R.string.preview_waiting_calories)
-            binding.previewSecondaryCalories.visibility = View.GONE
-            binding.previewMacros.text = getString(R.string.preview_waiting_macros)
+            binding.nutritionPreview.showMessage(getString(R.string.preview_waiting_amount), showPlaceholders = true)
             return
         }
 
         val amount = amountText.toDoubleOrNull()
         if (amount == null || amount <= 0.0) {
             binding.amountLayout.error = getString(R.string.positive_number_required)
-            binding.previewAmount.text = getString(R.string.preview_invalid_amount)
-            binding.previewCalories.text = getString(R.string.preview_waiting_calories)
-            binding.previewSecondaryCalories.visibility = View.GONE
-            binding.previewMacros.text = getString(R.string.preview_waiting_macros)
+            binding.nutritionPreview.showMessage(getString(R.string.preview_invalid_amount), showPlaceholders = true)
             return
         }
 
@@ -161,10 +153,7 @@ class LogFoodDialogFragment : DialogFragment() {
                 )
             }
         } catch (_: IllegalArgumentException) {
-            binding.previewAmount.text = getString(R.string.preview_invalid_amount)
-            binding.previewCalories.text = getString(R.string.preview_waiting_calories)
-            binding.previewSecondaryCalories.visibility = View.GONE
-            binding.previewMacros.text = getString(R.string.preview_waiting_macros)
+            binding.nutritionPreview.showMessage(getString(R.string.preview_invalid_amount), showPlaceholders = true)
             return
         }
 
@@ -173,27 +162,9 @@ class LogFoodDialogFragment : DialogFragment() {
         } else {
             UiFormatters.weight(calculation.weightGrams, preferredUnit)
         }
-        binding.previewAmount.text =
-            "${UiFormatters.servings(calculation.servings)} • $amountLabel"
-
-        binding.previewCalories.text =
-            UiFormatters.mainMacroLabeledValue(calculation.nutrition, goals.mainMacro)
-
-        val shouldShowSecondaryCalories = goals.showCaloriesInLivePreview && goals.mainMacro != MainMacro.CALORIES
-        binding.previewSecondaryCalories.visibility = if (shouldShowSecondaryCalories) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
-        if (shouldShowSecondaryCalories) {
-            binding.previewSecondaryCalories.text = UiFormatters.calories(calculation.nutrition.calories)
-        }
-
-        binding.previewMacros.text = UiFormatters.macroSummarySelectionLine(
-            nutritionSnapshot = calculation.nutrition,
-            goals = goals,
-            includeCaloriesUnderMainMacro = false
-        ) ?: getString(R.string.preview_macros_hidden)
+        binding.nutritionPreview.showNutrition(
+            calculation.nutrition, goals, "${UiFormatters.servings(calculation.servings)} • $amountLabel"
+        )
     }
 
     private fun submit(food: Food) {

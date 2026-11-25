@@ -9,17 +9,17 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
 object QrTransferCodec {
 
-    fun encodeToMatrix(rawJson: String, size: Int = 1024): BitMatrix {
-        require(rawJson.isNotBlank()) { "QR export data cannot be blank." }
+    fun encodeToMatrix(packet: String, size: Int = 1024): BitMatrix {
+        require(packet.isNotBlank()) { "QR export data cannot be blank." }
         require(size > 0) { "QR export size must be greater than zero." }
 
         val hints = mapOf(
-            EncodeHintType.MARGIN to 1,
-            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L
+            EncodeHintType.MARGIN to 4,
+            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M
         )
 
         return try {
-            QRCodeWriter().encode(rawJson, BarcodeFormat.QR_CODE, size, size, hints)
+            QRCodeWriter().encode(packet, BarcodeFormat.QR_CODE, size, size, hints)
         } catch (error: WriterException) {
             throw IllegalArgumentException(
                 "This export is too large for a single QR code.",

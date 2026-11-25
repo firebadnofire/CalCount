@@ -1,0 +1,22 @@
+{
+  "format": "ccr",
+  "schema_version": 1,
+  "id": "10000000-0000-4000-8000-000000000002",
+  "name": "Breakfast oats",
+  "description": "Two portions of oats",
+  "servings": 2,
+  "ingredients": [
+    {
+      "label_id": "10000000-0000-4000-8000-000000000001",
+      "quantity": 80,
+      "unit": "g",
+      "notes": "Dry weight"
+    }
+  ],
+  "labels": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "sha256": "b1694cb94f4f1faf5f141e87fe62bca436311f41c96d46f7e20ce116c69bc43c"
+    }
+  ]
+}

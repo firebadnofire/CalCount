@@ -24,7 +24,7 @@ The current implementation favors:
 - a single shared `AppViewModel` for app state
 - one repository class for persistence
 - one calculator object for nutrition math
-- local JSON storage in `SharedPreferences`
+- app-private JSON storage with previous-state recovery
 
 That makes the project easy to understand, easy to run, and fairly easy to
 change without chasing behavior across many layers.
@@ -51,18 +51,10 @@ change without chasing behavior across many layers.
 
 ## Persistence Choice
 
-The app stores all user data in a single serialized app-state JSON blob inside
-`SharedPreferences`.
-
-This is a deliberate simplicity tradeoff:
-
-- very low setup cost
-- no database schema to migrate yet
-- easy to reason about for an early app
-- acceptable for a local-first v1-sized project
-
-The tradeoff is that there is no query layer, partial updates, or durable schema
-versioning yet. If the app grows much larger, `Room` is the likely next step.
+CalCount stores one current app-state JSON document and a previous valid
+copy in its private files directory. It reads the legacy SharedPreferences
+`app_state` key for installations without a state file. See the
+[persistence layer](#10-persistence-layer) for the commit and recovery sequence.
 
 ## 3. High-Level App Layout
 
@@ -166,6 +158,7 @@ There are two closely related state containers:
 `AppState` contains:
 
 - `foods`
+- `recipes`
 - `logs`
 - `goals`
 
@@ -218,26 +211,23 @@ Design note:
 - solids use weight storage
 - liquids use volume storage
 
+## `Recipe`
+
+The recipe stores its UUID, description, notes, serving yield, and
+ingredient rows. Each ingredient references a food UUID and has a quantity
+and unit. The calculation resolves the current foods, scales each
+ingredient through `NutritionCalculator`, and derives total and per-serving
+nutrition and completeness. Referenced foods are protected against
+deletion while recipes use them.
+
 ## `LogEntry`
 
-Represents a saved consumption event.
-
-Key fields:
-
-- which food was logged
-- meal bucket
-- input mode
-- normalized consumed amount
-- already calculated nutrition snapshot
-- timestamp
-
-Important choice:
-
-- each log stores `calculatedNutrition` at save time
-
-That means historical entries do not need to recalculate if the source food is
-later edited. This is usually the correct behavior for a tracker because past
-logs should remain stable.
+A consumption event stores the source UUID and display name, meal,
+normalized amount, timestamp, and numerical nutrition snapshot. The
+`source_type` distinguishes food from recipe. A missing discriminator
+loads as food. Recipe entries also hold a map of saved completeness
+statuses. Today, History, and Day Detail render from the saved snapshot
+and status. Editing or deleting the source leaves those values intact.
 
 ## `Goals`
 
@@ -304,35 +294,17 @@ Why this matters:
 
 ## 10. Persistence Layer
 
-Persistence lives in:
+`CalorieRepository` maps app state to JSON and delegates disk replacement
+to `StateFile`. Before replacing the current file, the repository saves the
+last validated JSON as the previous copy. It writes and syncs a staging file,
+verifies its contents, then atomically replaces the destination. The view
+model publishes the new state after the replacement succeeds.
 
-- `app/src/main/java/org/archuser/CalCount/data/CalorieRepository.kt`
-
-Responsibilities:
-
-- load serialized app state from `SharedPreferences`
-- parse JSON into models
-- serialize models back to JSON
-- provide simple success/failure results to the view model
-
-Important implementation details:
-
-- all app data is stored under one preferences key: `app_state`
-- writes use `commit()`, not `apply()`
-- failed deserialization resets to a new empty `AppState`
-- when stored data is unreadable, the app surfaces a clear recovery message
-
-Design rationale:
-
-- `commit()` makes persistence synchronous and explicit
-- this is simpler for a small app where a write should either succeed now or
-  fail visibly now
-
-Tradeoff:
-
-- it is not optimized for large datasets
-- there is no migration/versioning framework
-- a malformed stored blob resets the whole local state
+Startup ignores staging files, loads the current file if valid, and falls
+back to the previous valid copy if needed. If stored files exist and both
+are unreadable, writes are disabled and the app reports the failure. If no
+state files exist, the legacy SharedPreferences value is read and preserved.
+The first successful save transitions the app to private JSON files.
 
 ## 11. Shared ViewModel
 
@@ -511,17 +483,22 @@ File:
 
 - `ui/library/FoodLibraryFragment.kt`
 
-Purpose:
+The Food Library uses **Swap** to switch between the **Cans** panel for
+saved foods and the **Recipes** panel. Recipe rows open editing, logging,
+and transfer actions. The label codec reads CCNL and legacy food JSON. The recipe archive codec
+uses Commons Compress for TAR and Android zstd-jni for Zstandard. Android
+file selection, incoming shared files, and scanner output converge at
+the same validated import draft. Conflict review compares local and
+incoming definitions and applies the reviewed state in one save.
 
-- reuse one JSON transfer payload for file export, file import, QR export, and QR import
-- keep transfer behavior local and non-proprietary
+QR uses a one-way carousel of framed CCNL or CCR bytes. The sender shows
+cycle time before starting and defaults to 1,000 ms per frame. CameraX
+bounds the receiver's frame backlog. The receiver keeps chunks across
+cycles, independent of playback speed, and opens import after digest
+verification. Camera permission is requested when scanning is selected.
 
-Important behavior:
-
-- import and share now prompt `QR or file?`
-- QR export renders the exact same JSON payload that file export writes
-- QR import decodes a QR payload and feeds the raw JSON into the existing import path
-- camera permission is requested only when the user explicitly chooses QR import
+See [CalCount file formats](cc-file-formats.md) for schemas, limits,
+completeness rules, QR framing, and supported Android runtime checks.
 
 ## Create Food
 
@@ -669,19 +646,11 @@ Potential future cost:
 - `AppViewModel` is already large and will keep growing if new feature areas are
   added without refactoring
 
-## SharedPreferences JSON storage
+## App-private JSON storage
 
-Good for:
-
-- speed of development
-- easy local persistence
-
-Potential future cost:
-
-- dataset growth
-- migrations
-- partial update complexity
-- whole-state reset risk on parse failure
+Whole-state JSON keeps persistence simple. It rewrites the document on each
+save and retains the previous validated copy. Larger datasets would
+increase storage and save costs.
 
 ## Dynamic view inflation instead of RecyclerView
 

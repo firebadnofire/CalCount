@@ -1,6 +1,18 @@
 package org.archuser.CalCount
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import androidx.core.content.IntentCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.archuser.CalCount.data.IncomingTransfer
+import org.archuser.CalCount.data.RecipeArchive
+import org.archuser.CalCount.data.readBounded
+import org.archuser.CalCount.ui.library.ImportReviewDialogFragment
 import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.core.graphics.Insets
@@ -25,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
+    private var importRead: Job? = null
     private val viewModel: AppViewModel by viewModels()
     private val navController by lazy {
         val navHostFragment = supportFragmentManager
@@ -81,6 +94,52 @@ class MainActivity : AppCompatActivity() {
                 .show()
 
             viewModel.clearMessage()
+        }
+        if (savedInstanceState == null) handleSharedIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleSharedIntent(intent)
+    }
+
+    private fun handleSharedIntent(intent: Intent) {
+        if (intent.action != Intent.ACTION_SEND) return
+        val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+            ?: intent.clipData?.takeIf { it.itemCount == 1 }?.getItemAt(0)?.uri
+        if (uri?.scheme == "content") importDocument(uri)
+        else viewModel.setTransientMessage("Select a single CalCount file to import.")
+    }
+
+    internal fun importDocument(uri: Uri) {
+        reviewTransfer {
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBounded(RecipeArchive.MAX_COMPRESSED) }
+                ?: error("The selected file could not be opened.")
+            IncomingTransfer.decode(bytes)
+        }
+    }
+
+    internal fun importPacket(bytes: ByteArray, type: String) =
+        reviewTransfer { IncomingTransfer.decode(bytes, type) }
+
+    internal fun reviewIncoming(incoming: IncomingTransfer) = reviewTransfer { incoming }
+
+    private fun reviewTransfer(decode: () -> IncomingTransfer) {
+        if (viewModel.importDraft != null || importRead?.isActive == true) {
+            viewModel.setTransientMessage("Finish or cancel the current import first.")
+            return
+        }
+        importRead = lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching(decode) }
+            result.onSuccess {
+                if (viewModel.importDraft != null || supportFragmentManager.isStateSaved) {
+                    viewModel.setTransientMessage("Open the transfer again once CalCount is active.")
+                } else if (viewModel.beginImport(it)) {
+                    ImportReviewDialogFragment().showNow(supportFragmentManager, "review_import")
+                }
+            }.onFailure {
+                viewModel.setTransientMessage(it.message ?: "The transfer could not be read.")
+            }
         }
     }
 
